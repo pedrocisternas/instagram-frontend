@@ -8,7 +8,9 @@ import {
   TableRow,
   TableCell,
   Button,
-  Skeleton 
+  Skeleton,
+  Select,
+  SelectItem 
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 
@@ -28,6 +30,14 @@ export default function Home() {
   const [sortDirection, setSortDirection] = useState('desc');
   const [syncing, setSyncing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [selectedTypes, setSelectedTypes] = useState(new Set([]));
+
+  // Agregar esta constante con los tipos disponibles
+  const MEDIA_TYPES = [
+    { label: 'Reel', value: 'VIDEO' },
+    { label: 'Carrusel', value: 'CAROUSEL_ALBUM' },
+    { label: 'Imagen', value: 'IMAGE' }
+  ];
 
   // Funciones
   const fetchPosts = async () => {
@@ -71,8 +81,16 @@ export default function Home() {
 
   // Ordenar y paginar posts
   const sortedAndPaginatedPosts = useMemo(() => {
+    // Filtrar
+    let filtered = [...allPosts];
+    if (selectedTypes.size > 0) {
+      filtered = filtered.filter(post => 
+        selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type)
+      );
+    }
+
     // Ordenar
-    const sorted = [...allPosts].sort((a, b) => {
+    const sorted = filtered.sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
 
@@ -95,7 +113,7 @@ export default function Home() {
     const start = (page - 1) * POSTS_PER_PAGE;
     const end = start + POSTS_PER_PAGE;
     return sorted.slice(start, end);
-  }, [allPosts, page, sortField, sortDirection]);
+  }, [allPosts, page, sortField, sortDirection, selectedTypes]);
 
   // Manejar ordenamiento
   const handleSort = (field) => {
@@ -104,6 +122,36 @@ export default function Home() {
     } else {
       setSortField(field);
       setSortDirection('desc');
+    }
+  };
+
+  // Agregar esta función helper para determinar el estilo del tag
+  const getMediaTypeStyle = (mediaType) => {
+    switch (mediaType) {
+      case 'VIDEO':
+      case 'REEL':
+        return 'bg-purple-100 text-purple-800';
+      case 'CAROUSEL_ALBUM':
+        return 'bg-blue-100 text-blue-800';   
+      case 'IMAGE':
+        return 'bg-green-100 text-green-800'; 
+      default:
+        return 'bg-gray-100 text-gray-800'; 
+    }
+  };
+
+  // Función para normalizar el tipo de media
+  const getMediaTypeLabel = (mediaType) => {
+    switch (mediaType) {
+      case 'VIDEO':
+      case 'REEL':
+        return 'Reel';
+      case 'CAROUSEL_ALBUM':
+        return 'Carrusel';
+      case 'IMAGE':
+        return 'Imagen';
+      default:
+        return mediaType;
     }
   };
 
@@ -126,19 +174,42 @@ export default function Home() {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          {sortField !== 'published_at' || sortDirection !== 'desc' ? (
+        <div className="flex gap-2 items-center justify-end min-w-[500px]">
+          {(selectedTypes.size > 0 || sortField !== 'published_at' || sortDirection !== 'desc') && (
             <Button
               color="primary"
               variant="flat"
               onPress={() => {
+                setSelectedTypes(new Set([]));
                 setSortField('published_at');
                 setSortDirection('desc');
               }}
             >
               Limpiar Filtros
             </Button>
-          ) : null}
+          )}
+
+          <Select
+            selectionMode="multiple"
+            placeholder="Filtrar por tipo"
+            selectedKeys={selectedTypes}
+            onSelectionChange={setSelectedTypes}
+            className="w-[200px]"
+            variant="flat"
+            size="md"
+            classNames={{
+              trigger: "h-[40px]",
+              value: "text-sm",
+              base: "max-h-[40px]",
+            }}
+          >
+            {MEDIA_TYPES.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </Select>
+          
           <Button
             color="primary"
             isLoading={syncing}
@@ -152,6 +223,7 @@ export default function Home() {
       <Table removeWrapper aria-label="Instagram posts table">
         <TableHeader>
           <TableColumn width={300}>Caption</TableColumn>
+          <TableColumn width={100}>Tipo</TableColumn>
           {[
             { field: 'published_at', label: 'Fecha', width: 100 },
             { field: 'published_at', label: 'Hora', width: 80 },
@@ -183,7 +255,7 @@ export default function Home() {
           {syncing ? (
             Array(POSTS_PER_PAGE).fill(null).map((_, index) => (
               <TableRow key={index}>
-                {Array(8).fill(null).map((_, cellIndex) => (
+                {Array(9).fill(null).map((_, cellIndex) => (
                   <TableCell key={cellIndex}>
                     <Skeleton className="h-4 w-full rounded" />
                   </TableCell>
@@ -198,6 +270,11 @@ export default function Home() {
                 onClick={() => window.location.href = `/post/${post.instagram_post_id}`}
               >
                 <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
+                <TableCell>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMediaTypeStyle(post.media_type)}`}>
+                    {getMediaTypeLabel(post.media_type)}
+                  </span>
+                </TableCell>
                 <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
                 <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
                 <TableCell align="right">{post.views?.toLocaleString()}</TableCell>

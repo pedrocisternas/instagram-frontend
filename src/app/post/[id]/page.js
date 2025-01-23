@@ -66,11 +66,11 @@ export default function PostPage() {
         
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Video Container - Left Side */}
-          <div className="lg:w-[55%]">
+          <div className="lg:w-[50%]">
             <Card className="h-full">
               <CardBody>
                 {post?.media_url && (
-                  <div className="aspect-[9/16] h-[calc(100vh-12rem)]">
+                  <div className="aspect-[16/9] h-[calc(100vh-12rem)]">
                     <video 
                       className="w-full h-full object-contain rounded-lg"
                       controls
@@ -86,7 +86,7 @@ export default function PostPage() {
           </div>
 
           {/* Metrics Container - Right Side */}
-          <div className="lg:w-[45%] space-y-4">
+          <div className="lg:w-[50%] space-y-4">
             {/* Engagement Metrics */}
             <Card>
               <CardBody>
