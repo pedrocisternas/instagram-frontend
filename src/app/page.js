@@ -192,10 +192,14 @@ export default function Home() {
             ))
           ) : (
             sortedAndPaginatedPosts.map(post => (
-              <TableRow key={post.id}>
-                <TableCell>{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
-                <TableCell>{formatDate(post.published_at)}</TableCell>
-                <TableCell>{formatTime(post.published_at)}</TableCell>
+              <TableRow 
+                key={post.id} 
+                className="cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => window.location.href = `/post/${post.instagram_post_id}`}
+              >
+                <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
+                <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
+                <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
                 <TableCell align="right">{post.views?.toLocaleString()}</TableCell>
                 <TableCell align="right">{post.likes?.toLocaleString()}</TableCell>
                 <TableCell align="right">{post.saves?.toLocaleString()}</TableCell>
