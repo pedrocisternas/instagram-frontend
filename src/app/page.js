@@ -10,9 +10,14 @@ import {
   Button,
   Skeleton,
   Select,
-  SelectItem 
+  SelectItem,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  Input
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
+import { useRouter } from 'next/navigation';
 
 // Constantes
 const POSTS_PER_PAGE = 20;
@@ -21,16 +26,27 @@ const USERNAME = "pirucisternas";
 
 // Componente Principal
 export default function Home() {
+  const router = useRouter();
   // Estados
   const [allPosts, setAllPosts] = useState([]); // Todos los posts
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return parseInt(params.get('page')) || 1;
+    }
+    return 1;
+  });
   const [sortField, setSortField] = useState('published_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [syncing, setSyncing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [selectedTypes, setSelectedTypes] = useState(new Set([]));
+  const [selectedCategories, setSelectedCategories] = useState(new Set([]));
+  const [categories, setCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   // Agregar esta constante con los tipos disponibles
   const MEDIA_TYPES = [
@@ -79,22 +95,24 @@ export default function Home() {
     }
   };
 
-  // Ordenar y paginar posts
-  const sortedAndPaginatedPosts = useMemo(() => {
-    // Filtrar
-    let filtered = [...allPosts];
-    if (selectedTypes.size > 0) {
-      filtered = filtered.filter(post => 
-        selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type)
-      );
-    }
+  // Modificar la función de filtrado para incluir categorías
+  const filteredPosts = useMemo(() => {
+    return allPosts.filter(post => {
+      const typeMatch = selectedTypes.size === 0 || 
+        selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type);
+      const categoryMatch = selectedCategories.size === 0 || 
+        (post.category_id && selectedCategories.has(post.category_id));
+      return typeMatch && categoryMatch;
+    });
+  }, [allPosts, selectedTypes, selectedCategories]);
 
-    // Ordenar
-    const sorted = filtered.sort((a, b) => {
+  // Usar filteredPosts para la paginación
+  const sortedAndPaginatedPosts = useMemo(() => {
+    // Ordenar los posts filtrados
+    const sorted = [...filteredPosts].sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
 
-      // Manejo especial para fechas
       if (sortField === 'published_at') {
         const aDate = new Date(aValue);
         const bDate = new Date(bValue);
@@ -103,17 +121,16 @@ export default function Home() {
           aDate.getTime() - bDate.getTime();
       }
 
-      // Manejo para valores numéricos
       const aNum = aValue ?? 0;
       const bNum = bValue ?? 0;
       return sortDirection === 'desc' ? bNum - aNum : aNum - bNum;
     });
 
-    // Paginar
+    // Paginar los resultados filtrados y ordenados
     const start = (page - 1) * POSTS_PER_PAGE;
     const end = start + POSTS_PER_PAGE;
     return sorted.slice(start, end);
-  }, [allPosts, page, sortField, sortDirection, selectedTypes]);
+  }, [filteredPosts, page, sortField, sortDirection]);
 
   // Manejar ordenamiento
   const handleSort = (field) => {
@@ -125,19 +142,15 @@ export default function Home() {
     }
   };
 
-  // Agregar esta función helper para determinar el estilo del tag
+  // Función helper para obtener el estilo del tipo de medio
   const getMediaTypeStyle = (mediaType) => {
-    switch (mediaType) {
-      case 'VIDEO':
-      case 'REEL':
-        return 'bg-purple-100 text-purple-800';
-      case 'CAROUSEL_ALBUM':
-        return 'bg-blue-100 text-blue-800';   
-      case 'IMAGE':
-        return 'bg-green-100 text-green-800'; 
-      default:
-        return 'bg-gray-100 text-gray-800'; 
-    }
+    const styles = {
+      VIDEO: 'bg-mediaType-reel-bg text-mediaType-reel-text',
+      REEL: 'bg-mediaType-reel-bg text-mediaType-reel-text',
+      CAROUSEL_ALBUM: 'bg-mediaType-carousel-bg text-mediaType-carousel-text',
+      IMAGE: 'bg-mediaType-image-bg text-mediaType-image-text'
+    };
+    return styles[mediaType] || 'bg-gray-100 text-gray-600';
   };
 
   // Función para normalizar el tipo de media
@@ -155,9 +168,115 @@ export default function Home() {
     }
   };
 
+  // Función para cargar categorías
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/categories?username=${USERNAME}`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new TypeError("Oops, no recibimos JSON!");
+      }
+      const data = await response.json();
+      console.log('Categorías recibidas:', data.categories); // Debug
+      setCategories(data.categories);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setCategories([]); // Establecer un valor por defecto en caso de error
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Función para crear nueva categoría
+  const handleCreateCategory = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: USERNAME, name: newCategoryName })
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error creating category');
+      }
+      const data = await response.json();
+      setNewCategoryName('');
+      fetchCategories();
+    } catch (err) {
+      console.error('Error creating category:', err);
+    }
+  };
+
+  // Función para asignar categoría
+  const handleAssignCategory = async (postId, categoryId) => {
+    // Guardar el estado anterior por si necesitamos revertir
+    const previousPosts = [...allPosts];
+    
+    // Actualización optimista en el frontend
+    setAllPosts(currentPosts => 
+      currentPosts.map(post => 
+        post.id === postId 
+          ? { ...post, category_id: categoryId }
+          : post
+      )
+    );
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/categories/${categoryId}/posts/${postId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: USERNAME })
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Error assigning category');
+      }
+      
+      // La actualización ya está hecha, solo necesitamos cerrar el popover
+      document.body.click();
+    } catch (err) {
+      console.error('Error assigning category:', err);
+      // Revertir al estado anterior si hay un error
+      setAllPosts(previousPosts);
+    }
+  };
+
+  // Función helper para obtener el color de categoría basado en su color_index
+  const getCategoryStyle = (category) => {
+    console.log('Category received:', category); // Debug log 1
+    if (!category) {
+      console.log('No category provided, returning default style'); // Debug log 2
+      return 'bg-gray-100 text-gray-600';
+    }
+    
+    const paletteIndex = (category.color_index % 15) + 1;
+    const styleClass = `bg-categoryPalette-${paletteIndex}-bg text-categoryPalette-${paletteIndex}-text`;
+    console.log('Color index:', category.color_index); // Debug log 3
+    console.log('Palette index:', paletteIndex); // Debug log 4
+    console.log('Style class generated:', styleClass); // Debug log 5
+    return styleClass;
+  };
+
+  // Actualizar la URL cuando cambia la página
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', newPage.toString());
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+  };
+
   // Effects
   useEffect(() => {
     fetchPosts();
+    fetchCategories();
   }, []); // Solo se ejecuta una vez al montar
 
   // Render
@@ -175,12 +294,13 @@ export default function Home() {
           )}
         </div>
         <div className="flex gap-2 items-center justify-end min-w-[500px]">
-          {(selectedTypes.size > 0 || sortField !== 'published_at' || sortDirection !== 'desc') && (
+          {(selectedTypes.size > 0 || selectedCategories.size > 0 || sortField !== 'published_at' || sortDirection !== 'desc') && (
             <Button
               color="primary"
               variant="flat"
               onPress={() => {
                 setSelectedTypes(new Set([]));
+                setSelectedCategories(new Set([]));
                 setSortField('published_at');
                 setSortDirection('desc');
               }}
@@ -209,6 +329,46 @@ export default function Home() {
               </SelectItem>
             ))}
           </Select>
+
+          <Select
+            selectionMode="multiple"
+            placeholder="Filtrar por categoría"
+            selectedKeys={selectedCategories}
+            onSelectionChange={setSelectedCategories}
+            className="w-[200px]"
+            variant="flat"
+            size="md"
+            classNames={{
+              trigger: "h-[40px]",
+              value: "text-sm",
+              base: "max-h-[40px]",
+            }}
+            renderValue={(items) => {
+              const selectedCount = items.length;
+              if (selectedCount === 0) return "Filtrar por categoría";
+              if (selectedCount <= 2) {
+                return items
+                  .map(item => categories.find(cat => cat.id === item.key)?.name)
+                  .filter(Boolean)
+                  .join(", ");
+              }
+              return `${selectedCount} categorías`;
+            }}
+          >
+            {categories.map((category) => (
+              <SelectItem 
+                key={category.id} 
+                value={category.id}
+                className="py-2"
+              >
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  getCategoryStyle(category)
+                }`}>
+                  {category.name}
+                </span>
+              </SelectItem>
+            ))}
+          </Select>
           
           <Button
             color="primary"
@@ -224,6 +384,7 @@ export default function Home() {
         <TableHeader>
           <TableColumn width={300}>Caption</TableColumn>
           <TableColumn width={100}>Tipo</TableColumn>
+          <TableColumn width={200}>Categoría</TableColumn>
           {[
             { field: 'published_at', label: 'Fecha', width: 100 },
             { field: 'published_at', label: 'Hora', width: 80 },
@@ -255,7 +416,7 @@ export default function Home() {
           {syncing ? (
             Array(POSTS_PER_PAGE).fill(null).map((_, index) => (
               <TableRow key={index}>
-                {Array(9).fill(null).map((_, cellIndex) => (
+                {Array(10).fill(null).map((_, cellIndex) => (
                   <TableCell key={cellIndex}>
                     <Skeleton className="h-4 w-full rounded" />
                   </TableCell>
@@ -267,13 +428,82 @@ export default function Home() {
               <TableRow 
                 key={post.id} 
                 className="cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => window.location.href = `/post/${post.instagram_post_id}`}
+                onClick={() => router.push(`/post/${post.instagram_post_id}`)}
               >
                 <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
                 <TableCell>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMediaTypeStyle(post.media_type)}`}>
                     {getMediaTypeLabel(post.media_type)}
                   </span>
+                </TableCell>
+                <TableCell>
+                  <Popover placement="bottom-start">
+                    <PopoverTrigger>
+                      {(() => {
+                        const category = categories.find(c => c.id === post.category_id);
+                        console.log('Post category_id:', post.category_id); // Debug log 6
+                        console.log('Found category:', category); // Debug log 7
+                        const style = getCategoryStyle(category);
+                        console.log('Applied style:', style); // Debug log 8
+                        
+                        return (
+                          <div 
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
+                            role="button"
+                            aria-label="Seleccionar categoría"
+                          >
+                            {category ? category.name : 'Sin categoría'}
+                          </div>
+                        );
+                      })()}
+                    </PopoverTrigger>
+                    <PopoverContent>
+                      <div className="p-2 w-64">
+                        <div className="mb-2 text-sm text-gray-600">
+                          Selecciona o crea una opción
+                        </div>
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {categories.map(category => (
+                            <div
+                              key={category.id}
+                              className={`px-2 py-1 rounded cursor-pointer hover:bg-gray-100 flex items-center ${
+                                post.category_id === category.id ? 'bg-gray-100' : ''
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAssignCategory(post.id, category.id);
+                              }}
+                            >
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                getCategoryStyle(category)
+                              }`}>
+                                {category.name}
+                              </span>
+                              {post.category_id === category.id && (
+                                <span className="text-blue-600 ml-auto">✓</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-2 pt-2 border-t">
+                          <Input
+                            size="sm"
+                            placeholder="Nueva categoría..."
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            aria-label="Crear nueva categoría"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyPress={(e) => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter' && newCategoryName.trim()) {
+                                handleCreateCategory();
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </TableCell>
                 <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
                 <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
@@ -291,20 +521,20 @@ export default function Home() {
       <div className="mt-4 flex items-center justify-between">
         <Button
           color="primary"
-          onPress={() => setPage(p => Math.max(1, p - 1))}
+          onPress={() => handlePageChange(Math.max(1, page - 1))}
           isDisabled={page === 1}
         >
           Anterior
         </Button>
         
         <span className="text-sm text-gray-700">
-          Página {page} de {Math.ceil(allPosts.length / POSTS_PER_PAGE)}
+          Página {page} de {Math.ceil(filteredPosts.length / POSTS_PER_PAGE)}
         </span>
         
         <Button
           color="primary"
-          onPress={() => setPage(p => p + 1)}
-          isDisabled={page >= Math.ceil(allPosts.length / POSTS_PER_PAGE)}
+          onPress={() => handlePageChange(page + 1)}
+          isDisabled={page >= Math.ceil(filteredPosts.length / POSTS_PER_PAGE)}
         >
           Siguiente
         </Button>

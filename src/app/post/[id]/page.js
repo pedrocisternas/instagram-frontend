@@ -1,4 +1,5 @@
 'use client'
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Button, Card, CardBody, Divider } from "@heroui/react";
@@ -7,6 +8,7 @@ import { formatDate, formatTime } from '../../../utils/dateFormatters';
 const USERNAME = "pirucisternas";
 
 export default function PostPage() {
+  const router = useRouter();
   const { id } = useParams();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function PostPage() {
           <Button
             color="primary"
             variant="flat"
-            onClick={() => window.history.back()}
+            onClick={() => router.back()}
           >
             Volver
           </Button>
