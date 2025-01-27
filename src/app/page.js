@@ -18,7 +18,7 @@ import {
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
-import StatsSummaryPanel from '@/components/posts/statsSummaryPanel';
+import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel';
 import { fetchPosts, syncPosts } from '@/services/api/posts';
 import { 
   fetchCategories, 
@@ -28,6 +28,11 @@ import {
   createSubcategory,
   assignSubcategoryToPost
 } from '@/services/api/categories';
+import { MEDIA_TYPES, getMediaTypeStyle } from '@/utils/mediaTypes';
+import MediaTypeFilter from '@/components/filters/MediaTypeFilter';
+import { getCategoryStyle } from '@/utils/categoryStyles';
+import CategoryFilter from '@/components/filters/CategoryFilter';
+import PostFilters from '@/components/filters/PostFilters';
 
 // Constantes
 const POSTS_PER_PAGE = 20;
@@ -59,13 +64,6 @@ export default function Home() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [subcategories, setSubcategories] = useState([]);
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
-
-  // Agregar esta constante con los tipos disponibles
-  const MEDIA_TYPES = [
-    { label: 'Reel', value: 'VIDEO' },
-    { label: 'Carrusel', value: 'CAROUSEL_ALBUM' },
-    { label: 'Imagen', value: 'IMAGE' }
-  ];
 
   // Funciones
   const fetchPostsData = async () => {
@@ -318,104 +316,21 @@ export default function Home() {
             </p>
           )}
         </div>
-        <div className="flex gap-2 items-center justify-end min-w-[500px]">
-          {(selectedTypes.size > 0 || selectedCategories.size > 0 || sortField !== 'published_at' || sortDirection !== 'desc') && (
-            <Button
-              color="primary"
-              variant="flat"
-              onPress={() => {
-                setSelectedTypes(new Set([]));
-                setSelectedCategories(new Set([]));
-                setSortField('published_at');
-                setSortDirection('desc');
-              }}
-            >
-              Limpiar Filtros
-            </Button>
-          )}
-
-          <Select
-            selectionMode="multiple"
-            placeholder="Filtrar por tipo"
-            selectedKeys={selectedTypes}
-            onSelectionChange={setSelectedTypes}
-            className="w-[200px]"
-            variant="flat"
-            size="md"
-            aria-label="Filtrar posts por tipo de medio"
-            renderValue={(items) => {
-              const selectedCount = items.length;
-              if (selectedCount === 0) return "Filtrar por tipo";
-              if (selectedCount <= 2) {
-                return items
-                  .map(item => MEDIA_TYPES.find(type => type.value === item.key)?.label)
-                  .filter(Boolean)
-                  .join(", ");
-              }
-              return `${selectedCount} tipos`;
-            }}
-          >
-            {MEDIA_TYPES.map((type) => (
-              <SelectItem 
-                key={type.value} 
-                value={type.value}
-                className="py-2"
-                textvalue={type.label}
-              >
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  getMediaTypeStyle(type.value)
-                }`}>
-                  {type.label}
-                </span>
-              </SelectItem>
-            ))}
-          </Select>
-
-          <Select
-            selectionMode="multiple"
-            placeholder="Filtrar por categoría"
-            selectedKeys={selectedCategories}
-            onSelectionChange={setSelectedCategories}
-            className="w-[200px]"
-            variant="flat"
-            size="md"
-            aria-label="Filtrar posts por categoría"
-            renderValue={(items) => {
-              const selectedCount = items.length;
-              if (selectedCount === 0) return "Filtrar por categoría";
-              if (selectedCount <= 2) {
-                return items
-                  .map(item => categories.find(cat => cat.id === item.key)?.name)
-                  .filter(Boolean)
-                  .join(", ");
-              }
-              return `${selectedCount} categorías`;
-            }}
-          >
-            {categories.map((category) => (
-              <SelectItem 
-                key={category.id} 
-                value={category.id}
-                className="py-2"
-                textvalue={category.name}
-              >
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  getCategoryStyle(category)
-                }`}>
-                  {category.name}
-                </span>
-              </SelectItem>
-            ))}
-          </Select>
-          
-          <Button
-            color="primary"
-            isLoading={syncing}
-            onPress={syncAllPages}
-          >
-            {syncing ? 'Sincronizando...' : 'Actualizar Métricas'}
-          </Button>
-        </div>
+        <PostFilters 
+          selectedTypes={selectedTypes}
+          selectedCategories={selectedCategories}
+          categories={categories}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onTypeChange={setSelectedTypes}
+          onCategoryChange={setSelectedCategories}
+          onSortReset={() => {
+            setSortField('published_at');
+            setSortDirection('desc');
+          }}
+          onSync={syncAllPages}
+          syncing={syncing}
+        />
       </div>
 
       {/* Add the stats panel here, using filteredPosts */}
