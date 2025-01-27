@@ -34,6 +34,7 @@ import { getCategoryStyle } from '@/utils/categoryStyles';
 import CategoryFilter from '@/components/filters/CategoryFilter';
 import PostFilters from '@/components/filters/PostFilters';
 import { APP_CONFIG } from '@/config/app';
+import { useSyncStore } from '@/store/sync';
 
 // Componente Principal
 export default function Home() {
@@ -51,8 +52,6 @@ export default function Home() {
   });
   const [sortField, setSortField] = useState('published_at');
   const [sortDirection, setSortDirection] = useState('desc');
-  const [syncing, setSyncing] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(null);
   const [selectedTypes, setSelectedTypes] = useState(new Set([]));
   const [selectedCategories, setSelectedCategories] = useState(new Set([]));
   const [categories, setCategories] = useState([]);
@@ -61,6 +60,9 @@ export default function Home() {
   const [subcategories, setSubcategories] = useState([]);
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [selectedSubcategories, setSelectedSubcategories] = useState(new Set([]));
+
+  // Obtenemos del store
+  const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
 
   // Funciones
   const fetchPostsData = async () => {
@@ -71,7 +73,7 @@ export default function Home() {
         const latestUpdate = data.posts.reduce((latest, post) => {
           return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
         }, data.posts[0].metrics_updated_at);
-        setLastUpdate(latestUpdate);
+        setLastUpdate(latestUpdate); // Usamos el setter del store
       }
     } catch (err) {
       setError(err.message);
@@ -82,14 +84,10 @@ export default function Home() {
 
   const syncAllPages = async () => {
     try {
-      setSyncing(true);
-      await syncPosts(APP_CONFIG.USERNAME);
+      await syncMetrics(); // Usamos la función del store
       await fetchPostsData();
     } catch (err) {
       setError(err.message);
-      console.error('Sync error:', err);
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -318,10 +316,10 @@ export default function Home() {
         <div>
           <Button
             color="primary"
-            isLoading={syncing}
+            isLoading={isSyncing}
             onPress={syncAllPages}
           >
-            {syncing ? 'Sincronizando...' : 'Actualizar Métricas'}
+            {isSyncing ? 'Sincronizando...' : 'Actualizar Métricas'}
           </Button>
           {lastUpdate && (
             <p className="text-sm text-gray-600 mt-1">
@@ -385,7 +383,7 @@ export default function Home() {
           ))}
         </TableHeader>
         <TableBody>
-          {syncing ? (
+          {isSyncing ? (
             Array(APP_CONFIG.POSTS_PER_PAGE).fill(null).map((_, index) => (
               <TableRow key={index}>
                 {Array(11).fill(null).map((_, cellIndex) => (
