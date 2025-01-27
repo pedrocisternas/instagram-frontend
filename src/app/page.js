@@ -64,6 +64,7 @@ export default function Home() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [subcategories, setSubcategories] = useState([]);
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
+  const [selectedSubcategories, setSelectedSubcategories] = useState(new Set([]));
 
   // Funciones
   const fetchPostsData = async () => {
@@ -96,16 +97,21 @@ export default function Home() {
     }
   };
 
-  // Modificar la función de filtrado para incluir categorías
+  // Modificar la función de filtrado para incluir categorías y subcategorías
   const filteredPosts = useMemo(() => {
     return allPosts.filter(post => {
       const typeMatch = selectedTypes.size === 0 || 
         selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type);
+      
       const categoryMatch = selectedCategories.size === 0 || 
         (post.category_id && selectedCategories.has(post.category_id));
-      return typeMatch && categoryMatch;
+      
+      const subcategoryMatch = selectedSubcategories.size === 0 ||
+        (post.subcategory_id && selectedSubcategories.has(post.subcategory_id));
+      
+      return typeMatch && categoryMatch && subcategoryMatch;
     });
-  }, [allPosts, selectedTypes, selectedCategories]);
+  }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories]);
 
   // Usar filteredPosts para la paginación
   const sortedAndPaginatedPosts = useMemo(() => {
@@ -302,34 +308,47 @@ export default function Home() {
     }
   }, [categories]);
 
+  // Limpiar subcategorías cuando cambian las categorías seleccionadas
+  useEffect(() => {
+    setSelectedSubcategories(new Set([]));
+  }, [selectedCategories]);
+
   // Render
   if (error) return <div>Error: {error}</div>;
 
   return (
     <main className="p-8 bg-gray-50">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Instagram Analytics</h1>
+          <Button
+            color="primary"
+            isLoading={syncing}
+            onPress={syncAllPages}
+          >
+            {syncing ? 'Sincronizando...' : 'Actualizar Métricas'}
+          </Button>
           {lastUpdate && (
             <p className="text-sm text-gray-600 mt-1">
               Última actualización: {formatDate(lastUpdate)} {formatTime(lastUpdate)}
             </p>
           )}
         </div>
+        
         <PostFilters 
           selectedTypes={selectedTypes}
           selectedCategories={selectedCategories}
+          selectedSubcategories={selectedSubcategories}
           categories={categories}
+          subcategories={subcategories}
           sortField={sortField}
           sortDirection={sortDirection}
           onTypeChange={setSelectedTypes}
           onCategoryChange={setSelectedCategories}
+          onSubcategoryChange={setSelectedSubcategories}
           onSortReset={() => {
             setSortField('published_at');
             setSortDirection('desc');
           }}
-          onSync={syncAllPages}
-          syncing={syncing}
         />
       </div>
 
@@ -373,7 +392,7 @@ export default function Home() {
           {syncing ? (
             Array(POSTS_PER_PAGE).fill(null).map((_, index) => (
               <TableRow key={index}>
-                {Array(10).fill(null).map((_, cellIndex) => (
+                {Array(11).fill(null).map((_, cellIndex) => (
                   <TableCell key={cellIndex}>
                     <Skeleton className="h-4 w-full rounded" />
                   </TableCell>
