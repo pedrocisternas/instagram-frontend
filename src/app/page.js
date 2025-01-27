@@ -48,6 +48,8 @@ export default function Home() {
   const [categories, setCategories] = useState([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [subcategories, setSubcategories] = useState([]);
+  const [newSubcategoryName, setNewSubcategoryName] = useState('');
 
   // Agregar esta constante con los tipos disponibles
   const MEDIA_TYPES = [
@@ -280,6 +282,94 @@ export default function Home() {
     fetchCategories();
   }, []); // Solo se ejecuta una vez al montar
 
+  const handleCreateSubcategory = async (categoryId) => {
+    try {
+      const response = await fetch('http://localhost:3001/api/subcategories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: USERNAME,
+          categoryId,
+          name: newSubcategoryName
+        })
+      });
+
+      if (!response.ok) throw new Error('Error creating subcategory');
+      
+      const { subcategory } = await response.json();
+      setSubcategories(prev => [...prev, subcategory]);
+      setNewSubcategoryName('');
+    } catch (error) {
+      console.error('Error creating subcategory:', error);
+    }
+  };
+
+  const handleAssignSubcategory = async (postId, subcategoryId) => {
+    try {
+      // Guardar el estado anterior por si necesitamos revertir
+      const previousPosts = [...allPosts];
+      
+      // Actualización optimista en el frontend
+      setAllPosts(currentPosts => 
+        currentPosts.map(post => 
+          post.id === postId 
+            ? { ...post, subcategory_id: subcategoryId }
+            : post
+        )
+      );
+
+      const response = await fetch(`http://localhost:3001/api/subcategories/${subcategoryId}/posts/${postId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: USERNAME
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error assigning subcategory');
+      }
+      
+      const { post } = await response.json();
+      
+      // Asegurarnos de que la actualización se refleje correctamente
+      setAllPosts(currentPosts => 
+        currentPosts.map(p => 
+          p.id === post.id ? post : p
+        )
+      );
+
+      // Cerrar el popover
+      document.body.click();
+    } catch (error) {
+      console.error('Error assigning subcategory:', error);
+      // Revertir al estado anterior si hay un error
+      setAllPosts(previousPosts);
+    }
+  };
+
+  // Modificar el useEffect para cargar subcategorías
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      try {
+        const promises = categories.map(category => 
+          fetch(`http://localhost:3001/api/subcategories?username=${USERNAME}&categoryId=${category.id}`)
+            .then(res => res.json())
+        );
+        
+        const results = await Promise.all(promises);
+        const allSubcategories = results.flatMap(result => result.subcategories);
+        setSubcategories(allSubcategories);
+      } catch (error) {
+        console.error('Error loading subcategories:', error);
+      }
+    };
+
+    if (categories.length > 0) {
+      loadSubcategories();
+    }
+  }, [categories]);
+
   // Render
   if (error) return <div>Error: {error}</div>;
 
@@ -408,6 +498,7 @@ export default function Home() {
           <TableColumn width={300}>Caption</TableColumn>
           <TableColumn width={100}>Tipo</TableColumn>
           <TableColumn width={200}>Categoría</TableColumn>
+          <TableColumn width={200}>Subcategoría</TableColumn>
           {[
             { field: 'published_at', label: 'Fecha', width: 100 },
             { field: 'published_at', label: 'Hora', width: 80 },
@@ -455,8 +546,10 @@ export default function Home() {
               >
                 <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
                 <TableCell>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getMediaTypeStyle(post.media_type)}`}>
-                    {getMediaTypeLabel(post.media_type)}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    getMediaTypeStyle(post.media_type)
+                  }`}>
+                    {MEDIA_TYPES.find(type => type.value === post.media_type)?.label || post.media_type}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -524,6 +617,83 @@ export default function Home() {
                             }}
                           />
                         </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </TableCell>
+                <TableCell>
+                  <Popover placement="bottom-start">
+                    <PopoverTrigger>
+                      {(() => {
+                        const category = categories.find(c => c.id === post.category_id);
+                        const subcategory = subcategories.find(s => s.id === post.subcategory_id);
+                        const style = getCategoryStyle(category);
+                        
+                        return (
+                          <div 
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
+                            role="button"
+                            aria-label="Seleccionar subcategoría"
+                          >
+                            {subcategory ? subcategory.name : 'Sin subcategoría'}
+                          </div>
+                        );
+                      })()}
+                    </PopoverTrigger>
+                    <PopoverContent>
+                      <div className="p-2 w-64">
+                        <div className="mb-2 text-sm text-gray-600">
+                          {post.category_id ? 'Selecciona o crea una subcategoría' : 'Primero selecciona una categoría'}
+                        </div>
+                        {post.category_id && (
+                          <>
+                            <div className="space-y-1 max-h-48 overflow-y-auto">
+                              {subcategories
+                                .filter(sub => sub.category_id === post.category_id)
+                                .map(subcategory => (
+                                  <div
+                                    key={subcategory.id}
+                                    className={`px-2 py-1 rounded cursor-pointer hover:bg-gray-100 flex items-center ${
+                                      post.subcategory_id === subcategory.id ? 'bg-gray-100' : ''
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAssignSubcategory(post.id, subcategory.id);
+                                    }}
+                                    role="menuitem"
+                                    aria-label={`Seleccionar subcategoría ${subcategory.name}`}
+                                  >
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      getCategoryStyle(categories.find(c => c.id === post.category_id))
+                                    }`}
+                                    textValue={subcategory.name}
+                                    >
+                                      {subcategory.name}
+                                    </span>
+                                    {post.subcategory_id === subcategory.id && (
+                                      <span className="text-blue-600 ml-auto">✓</span>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 pt-2 border-t">
+                              <Input
+                                size="sm"
+                                placeholder="Nueva subcategoría..."
+                                value={newSubcategoryName}
+                                onChange={(e) => setNewSubcategoryName(e.target.value)}
+                                aria-label="Crear nueva subcategoría"
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyPress={(e) => {
+                                  e.stopPropagation();
+                                  if (e.key === 'Enter' && newSubcategoryName.trim()) {
+                                    handleCreateSubcategory(post.category_id);
+                                  }
+                                }}
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </PopoverContent>
                   </Popover>
