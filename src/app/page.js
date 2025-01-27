@@ -33,11 +33,7 @@ import MediaTypeFilter from '@/components/filters/MediaTypeFilter';
 import { getCategoryStyle } from '@/utils/categoryStyles';
 import CategoryFilter from '@/components/filters/CategoryFilter';
 import PostFilters from '@/components/filters/PostFilters';
-
-// Constantes
-const POSTS_PER_PAGE = 20;
-const USERNAME = "pirucisternas";
-
+import { APP_CONFIG } from '@/config/app';
 
 // Componente Principal
 export default function Home() {
@@ -69,7 +65,7 @@ export default function Home() {
   // Funciones
   const fetchPostsData = async () => {
     try {
-      const data = await fetchPosts(USERNAME);
+      const data = await fetchPosts(APP_CONFIG.USERNAME);
       setAllPosts(data.posts);
       if (data.posts.length > 0) {
         const latestUpdate = data.posts.reduce((latest, post) => {
@@ -87,7 +83,7 @@ export default function Home() {
   const syncAllPages = async () => {
     try {
       setSyncing(true);
-      await syncPosts(USERNAME);
+      await syncPosts(APP_CONFIG.USERNAME);
       await fetchPostsData();
     } catch (err) {
       setError(err.message);
@@ -134,8 +130,8 @@ export default function Home() {
     });
 
     // Paginar los resultados filtrados y ordenados
-    const start = (page - 1) * POSTS_PER_PAGE;
-    const end = start + POSTS_PER_PAGE;
+    const start = (page - 1) * APP_CONFIG.POSTS_PER_PAGE;
+    const end = start + APP_CONFIG.POSTS_PER_PAGE;
     return sorted.slice(start, end);
   }, [filteredPosts, page, sortField, sortDirection]);
 
@@ -178,7 +174,7 @@ export default function Home() {
   // Función para cargar categorías
   const fetchCategoriesData = async () => {
     try {
-      const categories = await fetchCategories(USERNAME);
+      const categories = await fetchCategories(APP_CONFIG.USERNAME);
       console.log('Categorías recibidas:', categories); // Mantenemos el debug log
       setCategories(categories);
     } catch (err) {
@@ -192,7 +188,7 @@ export default function Home() {
   // Función para crear nueva categoría
   const handleCreateCategory = async () => {
     try {
-      const { category } = await createCategory(USERNAME, newCategoryName);
+      const { category } = await createCategory(APP_CONFIG.USERNAME, newCategoryName);
       setNewCategoryName('');
       fetchCategoriesData(); // Recargamos las categorías
     } catch (err) {
@@ -218,7 +214,7 @@ export default function Home() {
     );
 
     try {
-      const { post } = await assignCategoryToPost(USERNAME, categoryId, postId);
+      const { post } = await assignCategoryToPost(APP_CONFIG.USERNAME, categoryId, postId);
       document.body.click(); // Cerramos el popover
     } catch (err) {
       console.error('Error assigning category:', err);
@@ -258,7 +254,7 @@ export default function Home() {
 
   const handleCreateSubcategory = async (categoryId) => {
     try {
-      const { subcategory } = await createSubcategory(USERNAME, categoryId, newSubcategoryName);
+      const { subcategory } = await createSubcategory(APP_CONFIG.USERNAME, categoryId, newSubcategoryName);
       setSubcategories(prev => [...prev, subcategory]);
       setNewSubcategoryName('');
     } catch (error) {
@@ -279,7 +275,7 @@ export default function Home() {
     );
 
     try {
-      const { post } = await assignSubcategoryToPost(USERNAME, subcategoryId, postId);
+      const { post } = await assignSubcategoryToPost(APP_CONFIG.USERNAME, subcategoryId, postId);
       document.body.click(); // Cerramos el popover
     } catch (error) {
       console.error('Error assigning subcategory:', error);
@@ -292,7 +288,7 @@ export default function Home() {
     const loadSubcategories = async () => {
       try {
         const promises = categories.map(category => 
-          fetchSubcategories(USERNAME, category.id)
+          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
         );
         
         const results = await Promise.all(promises);
@@ -390,7 +386,7 @@ export default function Home() {
         </TableHeader>
         <TableBody>
           {syncing ? (
-            Array(POSTS_PER_PAGE).fill(null).map((_, index) => (
+            Array(APP_CONFIG.POSTS_PER_PAGE).fill(null).map((_, index) => (
               <TableRow key={index}>
                 {Array(11).fill(null).map((_, cellIndex) => (
                   <TableCell key={cellIndex}>
@@ -583,13 +579,13 @@ export default function Home() {
         </Button>
         
         <span className="text-sm text-gray-700">
-          Página {page} de {Math.ceil(filteredPosts.length / POSTS_PER_PAGE)}
+          Página {page} de {Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
         </span>
         
         <Button
           color="primary"
           onPress={() => handlePageChange(page + 1)}
-          isDisabled={page >= Math.ceil(filteredPosts.length / POSTS_PER_PAGE)}
+          isDisabled={page >= Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
         >
           Siguiente
         </Button>
