@@ -18,6 +18,7 @@ import {
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
+import StatsSummaryPanel from '@/components/posts/statsSummaryPanel';
 
 // Constantes
 const POSTS_PER_PAGE = 20;
@@ -322,10 +323,29 @@ export default function Home() {
               value: "text-sm",
               base: "max-h-[40px]",
             }}
+            renderValue={(items) => {
+              const selectedCount = items.length;
+              if (selectedCount === 0) return "Filtrar por tipo";
+              if (selectedCount <= 2) {
+                return items
+                  .map(item => MEDIA_TYPES.find(type => type.value === item.key)?.label)
+                  .filter(Boolean)
+                  .join(", ");
+              }
+              return `${selectedCount} tipos`;
+            }}
           >
             {MEDIA_TYPES.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
-                {type.label}
+              <SelectItem 
+                key={type.value} 
+                value={type.value}
+                className="py-2"
+              >
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  getMediaTypeStyle(type.value)
+                }`}>
+                  {type.label}
+                </span>
               </SelectItem>
             ))}
           </Select>
@@ -379,6 +399,9 @@ export default function Home() {
           </Button>
         </div>
       </div>
+
+      {/* Add the stats panel here, using filteredPosts */}
+      <StatsSummaryPanel posts={filteredPosts} />
 
       <Table removeWrapper aria-label="Instagram posts table">
         <TableHeader>
