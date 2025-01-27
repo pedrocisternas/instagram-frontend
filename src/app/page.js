@@ -19,6 +19,15 @@ import {
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
 import StatsSummaryPanel from '@/components/posts/statsSummaryPanel';
+import { fetchPosts, syncPosts } from '@/services/api/posts';
+import { 
+  fetchCategories, 
+  createCategory, 
+  assignCategoryToPost,
+  fetchSubcategories,
+  createSubcategory,
+  assignSubcategoryToPost
+} from '@/services/api/categories';
 
 // Constantes
 const POSTS_PER_PAGE = 20;
@@ -59,12 +68,9 @@ export default function Home() {
   ];
 
   // Funciones
-  const fetchPosts = async () => {
+  const fetchPostsData = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/posts?username=${USERNAME}`
-      );
-      const data = await response.json();
+      const data = await fetchPosts(USERNAME);
       setAllPosts(data.posts);
       if (data.posts.length > 0) {
         const latestUpdate = data.posts.reduce((latest, post) => {
@@ -82,14 +88,8 @@ export default function Home() {
   const syncAllPages = async () => {
     try {
       setSyncing(true);
-      const response = await fetch('http://localhost:3001/api/posts/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: USERNAME })
-      });
-      
-      if (!response.ok) throw new Error('Sync failed');
-      await fetchPosts();
+      await syncPosts(USERNAME);
+      await fetchPostsData();
     } catch (err) {
       setError(err.message);
       console.error('Sync error:', err);
@@ -172,24 +172,14 @@ export default function Home() {
   };
 
   // Función para cargar categorías
-  const fetchCategories = async () => {
+  const fetchCategoriesData = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/categories?username=${USERNAME}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new TypeError("Oops, no recibimos JSON!");
-      }
-      const data = await response.json();
-      console.log('Categorías recibidas:', data.categories); // Debug
-      setCategories(data.categories);
+      const categories = await fetchCategories(USERNAME);
+      console.log('Categorías recibidas:', categories); // Mantenemos el debug log
+      setCategories(categories);
     } catch (err) {
       console.error('Error fetching categories:', err);
-      setCategories([]); // Establecer un valor por defecto en caso de error
+      setCategories([]); // Mantenemos el comportamiento existente
     } finally {
       setLoadingCategories(false);
     }
@@ -198,18 +188,9 @@ export default function Home() {
   // Función para crear nueva categoría
   const handleCreateCategory = async () => {
     try {
-      const response = await fetch('http://localhost:3001/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: USERNAME, name: newCategoryName })
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error creating category');
-      }
-      const data = await response.json();
+      const { category } = await createCategory(USERNAME, newCategoryName);
       setNewCategoryName('');
-      fetchCategories();
+      fetchCategoriesData(); // Recargamos las categorías
     } catch (err) {
       console.error('Error creating category:', err);
     }
@@ -217,38 +198,27 @@ export default function Home() {
 
   // Función para asignar categoría
   const handleAssignCategory = async (postId, categoryId) => {
-    // Guardar el estado anterior por si necesitamos revertir
     const previousPosts = [...allPosts];
     
     // Actualización optimista en el frontend
     setAllPosts(currentPosts => 
       currentPosts.map(post => 
         post.id === postId 
-          ? { ...post, category_id: categoryId }
+          ? { 
+              ...post, 
+              category_id: categoryId,
+              subcategory_id: null // Limpiamos la subcategoría cuando cambia la categoría
+            }
           : post
       )
     );
 
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/categories/${categoryId}/posts/${postId}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: USERNAME })
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error('Error assigning category');
-      }
-      
-      // La actualización ya está hecha, solo necesitamos cerrar el popover
-      document.body.click();
+      const { post } = await assignCategoryToPost(USERNAME, categoryId, postId);
+      document.body.click(); // Cerramos el popover
     } catch (err) {
       console.error('Error assigning category:', err);
-      // Revertir al estado anterior si hay un error
-      setAllPosts(previousPosts);
+      setAllPosts(previousPosts); // Revertimos en caso de error
     }
   };
 
@@ -278,25 +248,13 @@ export default function Home() {
 
   // Effects
   useEffect(() => {
-    fetchPosts();
-    fetchCategories();
+    fetchPostsData();
+    fetchCategoriesData();
   }, []); // Solo se ejecuta una vez al montar
 
   const handleCreateSubcategory = async (categoryId) => {
     try {
-      const response = await fetch('http://localhost:3001/api/subcategories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: USERNAME,
-          categoryId,
-          name: newSubcategoryName
-        })
-      });
-
-      if (!response.ok) throw new Error('Error creating subcategory');
-      
-      const { subcategory } = await response.json();
+      const { subcategory } = await createSubcategory(USERNAME, categoryId, newSubcategoryName);
       setSubcategories(prev => [...prev, subcategory]);
       setNewSubcategoryName('');
     } catch (error) {
@@ -305,46 +263,23 @@ export default function Home() {
   };
 
   const handleAssignSubcategory = async (postId, subcategoryId) => {
+    const previousPosts = [...allPosts];
+    
+    // Actualización optimista en el frontend
+    setAllPosts(currentPosts => 
+      currentPosts.map(post => 
+        post.id === postId 
+          ? { ...post, subcategory_id: subcategoryId }
+          : post
+      )
+    );
+
     try {
-      // Guardar el estado anterior por si necesitamos revertir
-      const previousPosts = [...allPosts];
-      
-      // Actualización optimista en el frontend
-      setAllPosts(currentPosts => 
-        currentPosts.map(post => 
-          post.id === postId 
-            ? { ...post, subcategory_id: subcategoryId }
-            : post
-        )
-      );
-
-      const response = await fetch(`http://localhost:3001/api/subcategories/${subcategoryId}/posts/${postId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: USERNAME
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Error assigning subcategory');
-      }
-      
-      const { post } = await response.json();
-      
-      // Asegurarnos de que la actualización se refleje correctamente
-      setAllPosts(currentPosts => 
-        currentPosts.map(p => 
-          p.id === post.id ? post : p
-        )
-      );
-
-      // Cerrar el popover
-      document.body.click();
+      const { post } = await assignSubcategoryToPost(USERNAME, subcategoryId, postId);
+      document.body.click(); // Cerramos el popover
     } catch (error) {
       console.error('Error assigning subcategory:', error);
-      // Revertir al estado anterior si hay un error
-      setAllPosts(previousPosts);
+      setAllPosts(previousPosts); // Revertimos en caso de error
     }
   };
 
@@ -353,12 +288,11 @@ export default function Home() {
     const loadSubcategories = async () => {
       try {
         const promises = categories.map(category => 
-          fetch(`http://localhost:3001/api/subcategories?username=${USERNAME}&categoryId=${category.id}`)
-            .then(res => res.json())
+          fetchSubcategories(USERNAME, category.id)
         );
         
         const results = await Promise.all(promises);
-        const allSubcategories = results.flatMap(result => result.subcategories);
+        const allSubcategories = results.flat();
         setSubcategories(allSubcategories);
       } catch (error) {
         console.error('Error loading subcategories:', error);
@@ -408,11 +342,7 @@ export default function Home() {
             className="w-[200px]"
             variant="flat"
             size="md"
-            classNames={{
-              trigger: "h-[40px]",
-              value: "text-sm",
-              base: "max-h-[40px]",
-            }}
+            aria-label="Filtrar posts por tipo de medio"
             renderValue={(items) => {
               const selectedCount = items.length;
               if (selectedCount === 0) return "Filtrar por tipo";
@@ -430,6 +360,7 @@ export default function Home() {
                 key={type.value} 
                 value={type.value}
                 className="py-2"
+                textvalue={type.label}
               >
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   getMediaTypeStyle(type.value)
@@ -448,11 +379,7 @@ export default function Home() {
             className="w-[200px]"
             variant="flat"
             size="md"
-            classNames={{
-              trigger: "h-[40px]",
-              value: "text-sm",
-              base: "max-h-[40px]",
-            }}
+            aria-label="Filtrar posts por categoría"
             renderValue={(items) => {
               const selectedCount = items.length;
               if (selectedCount === 0) return "Filtrar por categoría";
@@ -470,6 +397,7 @@ export default function Home() {
                 key={category.id} 
                 value={category.id}
                 className="py-2"
+                textvalue={category.name}
               >
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   getCategoryStyle(category)
@@ -556,8 +484,8 @@ export default function Home() {
                   <Popover placement="bottom-start">
                     <PopoverTrigger>
                       {(() => {
-                        const category = categories.find(c => c.id === post.category_id);
-                        console.log('Post category_id:', post.category_id); // Debug log 6
+                        const category = categories?.find(c => c?.id === post?.category_id);
+                        console.log('Post category_id:', post?.category_id); // Debug log 6
                         console.log('Found category:', category); // Debug log 7
                         const style = getCategoryStyle(category);
                         console.log('Applied style:', style); // Debug log 8
@@ -625,8 +553,8 @@ export default function Home() {
                   <Popover placement="bottom-start">
                     <PopoverTrigger>
                       {(() => {
-                        const category = categories.find(c => c.id === post.category_id);
-                        const subcategory = subcategories.find(s => s.id === post.subcategory_id);
+                        const category = categories?.find(c => c?.id === post?.category_id);
+                        const subcategory = subcategories?.find(s => s?.id === post?.subcategory_id);
                         const style = getCategoryStyle(category);
                         
                         return (
@@ -666,7 +594,7 @@ export default function Home() {
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                       getCategoryStyle(categories.find(c => c.id === post.category_id))
                                     }`}
-                                    textValue={subcategory.name}
+                                    textvalue={subcategory.name}
                                     >
                                       {subcategory.name}
                                     </span>
