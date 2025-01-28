@@ -113,45 +113,97 @@ export default function AnalyticsDashboard() {
     });
   }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories]);
 
-  // Datos para el gráfico
+  // Datos del gráfico filtrados y ordenados
   const chartData = useMemo(() => {
-    const sorted = [...filteredPosts].sort((a, b) => 
-      new Date(b.published_at) - new Date(a.published_at)
-    );
-    return sorted.slice(0, 50); // Tomamos los últimos 50 posts
+    return [...filteredPosts]
+      .filter(post => post.views > 0) // Filtramos posts con 0 views
+      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
   }, [filteredPosts]);
 
-  // Series del gráfico
-  const series = useMemo(() => [{
-    name: 'Views',
-    data: chartData.map(post => {
+  // Series del gráfico con categorías como series separadas
+  const series = useMemo(() => {
+    const categoryGroups = {};
+    
+    chartData.forEach(post => {
       const category = categories.find(c => c.id === post.category_id);
-      return {
-        x: post.caption?.slice(0, 30) || `Post ${post.id}`,
+      const categoryName = category?.name || 'Sin categoría';
+      
+      if (!categoryGroups[categoryName]) {
+        categoryGroups[categoryName] = {
+          name: categoryName,
+          type: 'scatter',
+          data: []
+        };
+      }
+      
+      categoryGroups[categoryName].data.push({
+        x: new Date(post.published_at).getTime(),
         y: post.views || 0,
-        fillColor: getCategoryColor(category),
-        category: category?.name || 'Sin categoría'
-      };
-    })
-  }], [chartData, categories]);
+        views: post.views || 0,
+        caption: post.caption || '',
+        published_at: post.published_at
+      });
+    });
+    
+    return Object.values(categoryGroups);
+  }, [chartData, categories]);
 
-  // Actualizar chartOptions para mostrar la leyenda
+  // Calculamos el promedio de vistas
+  const averageViews = useMemo(() => {
+    if (chartData.length === 0) return 0;
+    const total = chartData.reduce((sum, post) => sum + (post.views || 0), 0);
+    return Math.round(total / chartData.length);
+  }, [chartData]);
+
   const chartOptions = useMemo(() => ({
     chart: {
       type: 'scatter',
-      zoom: { enabled: true, type: 'xy' },
-      toolbar: { show: true }
+      animations: {
+        enabled: false  // Deshabilitamos animaciones para mejor rendimiento
+      },
+      zoom: {
+        enabled: true,
+        type: 'xy'
+      },
+      toolbar: {
+        show: true,
+        tools: {
+          download: true,
+          selection: true,
+          zoom: true,
+          zoomin: true,
+          zoomout: true,
+          pan: true,
+          reset: true
+        }
+      }
     },
-    markers: {
-      size: 10,
-      hover: { size: 12 }
+    legend: {
+      show: true,
+      position: 'right',
+      fontSize: '14px',
+      markers: {
+        width: 12,
+        height: 12,
+        radius: 6
+      },
+      onItemClick: {
+        toggleDataSeries: true
+      },
+      onItemHover: {
+        highlightDataSeries: true
+      }
     },
     xaxis: {
-      type: 'category',
-      labels: { 
-        rotate: -45,
-        maxHeight: 100,
-        trim: true
+      type: 'datetime',
+      reverse: true,
+      labels: {
+        datetimeFormatter: {
+          year: 'yyyy',
+          month: 'MMM \'yy',
+          day: 'dd MMM',
+          hour: 'HH:mm'
+        }
       }
     },
     yaxis: {
@@ -165,15 +217,65 @@ export default function AnalyticsDashboard() {
       }
     },
     tooltip: {
-      y: {
-        formatter: (val) => val.toLocaleString()
+      custom: function({ series, seriesIndex, dataPointIndex, w }) {
+        const point = w.config.series[seriesIndex].data[dataPointIndex];
+        const category = series[seriesIndex].name;
+        const views = point.y >= 1000 
+          ? `${(point.y / 1000).toFixed(1)}K` 
+          : point.y;
+        const date = new Date(point.x).toLocaleDateString();
+        
+        return `
+          <div class="p-2">
+            <div class="text-gray-600">${(point.caption || 'Sin descripción').length > 30 ? `${(point.caption || 'Sin descripción').substring(0, 30)}...` : (point.caption || 'Sin descripción')}</div>
+            <div class="font-medium">${views} Views</div>
+            <div class="text-sm">${date}</div>
+          </div>
+        `;
+      },
+      shared: false,
+      intersect: true,
+      fixed: {
+        enabled: false
       }
     },
-    legend: {
-      show: true,
-      position: 'top'
+    markers: {
+      size: 8,
+      hover: {
+        size: 10
+      }
+    },
+    grid: {
+      xaxis: {
+        lines: {
+          show: true
+        }
+      }
+    },
+    annotations: {
+      yaxis: [{
+        y: averageViews,
+        borderColor: '#000000',
+        strokeDashArray: 0,
+        borderWidth: 1,
+        label: {
+          borderColor: '#000000',
+          style: {
+            color: '#fff',
+            background: '#000000',
+            padding: {
+              left: 10,
+              right: 10
+            }
+          },
+          text: `Promedio: ${averageViews >= 1000 ? `${(averageViews / 1000).toFixed(1)}K` : averageViews}`,
+          position: 'right',
+          offsetX: 10,
+          textAnchor: 'start'
+        }
+      }]
     }
-  }), []);
+  }), [averageViews]);
 
   // Effect para cargar datos iniciales
   useEffect(() => {
@@ -216,6 +318,7 @@ export default function AnalyticsDashboard() {
 
   if (loading) return <div className="p-8">Cargando...</div>;
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
+  if (!chartData || chartData.length === 0) return <div className="p-8">No hay datos disponibles</div>;
 
   return (
     <main className="p-8 bg-gray-50">
@@ -259,6 +362,7 @@ export default function AnalyticsDashboard() {
           series={series}
           type="scatter"
           height={700}
+          width="100%"
         />
       </div>
     </main>
