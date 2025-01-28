@@ -6,7 +6,13 @@ import { Button, Card, CardBody, Divider } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
 import { getCategoryStyle } from '@/utils/categoryStyles';
-import { fetchCategories, fetchSubcategories } from '@/services/api/categories';
+import { 
+  assignCategoryToPost,
+  assignSubcategoryToPost,
+  fetchCategories,
+  fetchSubcategories
+} from '@/services/api/categories';
+import CategoryPopover from '@/components/categories/CategoryPopover';
 
 export default function PostPage() {
   const router = useRouter();
@@ -72,6 +78,51 @@ export default function PostPage() {
   const currentCategory = categories.find(c => c.id === post?.category_id);
   const currentSubcategory = subcategories.find(s => s.id === post?.subcategory_id);
 
+  const handleAssignCategory = async (categoryId) => {
+    const previousPost = post;
+    
+    // Actualización optimista
+    setPost(currentPost => ({
+      ...currentPost,
+      category_id: categoryId,
+      subcategory_id: null // Limpiamos la subcategoría cuando cambia la categoría
+    }));
+
+    try {
+      // Notar que aquí esperamos { post }, no { post: updatedPost }
+      const { post: updatedPost } = await assignCategoryToPost(APP_CONFIG.USERNAME, categoryId, post.id);
+      
+      // Actualizamos con el post retornado por la API
+      setPost(updatedPost);
+      document.body.click(); // Cerramos el popover
+    } catch (error) {
+      console.error('Error assigning category:', error);
+      setPost(previousPost); // Revertimos en caso de error
+    }
+  };
+
+  const handleAssignSubcategory = async (subcategoryId) => {
+    const previousPost = post;
+    
+    // Actualización optimista
+    setPost(currentPost => ({
+      ...currentPost,
+      subcategory_id: subcategoryId
+    }));
+
+    try {
+      // Notar que aquí esperamos { post }, no { post: updatedPost }
+      const { post: updatedPost } = await assignSubcategoryToPost(APP_CONFIG.USERNAME, subcategoryId, post.id);
+      
+      // Actualizamos con el post retornado por la API
+      setPost(updatedPost);
+      document.body.click(); // Cerramos el popover
+    } catch (error) {
+      console.error('Error assigning subcategory:', error);
+      setPost(previousPost); // Revertimos en caso de error
+    }
+  };
+
   if (loading) return (
     <div className="p-8">
       <div className="animate-pulse">
@@ -130,20 +181,27 @@ export default function PostPage() {
               <CardBody>
                 <h3 className="text-lg font-semibold mb-4">Categorizaciones</h3>
                 <div className="flex gap-4">
-                  <div>
+                  <div className="w-28">
                     <p className="text-sm text-gray-600 mb-2">Categoría</p>
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      getCategoryStyle(post?.category)
-                    }`}>
-                      {post?.category ? post.category.name : 'Sin categoría'}
+                    <div className="min-h-[28px] flex items-center">
+                      <CategoryPopover
+                        category={currentCategory}
+                        categories={categories}
+                        onAssignCategory={handleAssignCategory}
+                        type="categoría"
+                      />
                     </div>
                   </div>
-                  <div>
+                  <div className="w-36">
                     <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      getCategoryStyle(post?.category)
-                    }`}>
-                      {post?.subcategory ? post.subcategory.name : 'Sin subcategoría'}
+                    <div className="min-h-[28px] flex items-center">
+                      <CategoryPopover
+                        category={currentSubcategory}
+                        categories={subcategories.filter(sub => sub.category_id === post?.category_id)}
+                        onAssignCategory={handleAssignSubcategory}
+                        parentCategory={currentCategory}
+                        type="subcategoría"
+                      />
                     </div>
                   </div>
                 </div>
