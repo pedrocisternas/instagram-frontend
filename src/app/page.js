@@ -29,12 +29,11 @@ import {
   assignSubcategoryToPost
 } from '@/services/api/categories';
 import { MEDIA_TYPES, getMediaTypeStyle } from '@/utils/mediaTypes';
-import MediaTypeFilter from '@/components/filters/MediaTypeFilter';
 import { getCategoryStyle } from '@/utils/categoryStyles';
-import CategoryFilter from '@/components/filters/CategoryFilter';
 import PostFilters from '@/components/filters/PostFilters';
 import { APP_CONFIG } from '@/config/app';
 import { useSyncStore } from '@/store/sync';
+import CategoryPopover from '@/components/categories/CategoryPopover';
 
 // Componente Principal
 export default function Home() {
@@ -367,150 +366,27 @@ export default function Home() {
                   </span>
                 </TableCell>
                 <TableCell>
-                  <Popover placement="bottom-start">
-                    <PopoverTrigger>
-                      {(() => {
-                        const category = categories?.find(c => c?.id === post?.category_id);
-                        console.log('Post category_id:', post?.category_id); // Debug log 6
-                        console.log('Found category:', category); // Debug log 7
-                        const style = getCategoryStyle(category);
-                        console.log('Applied style:', style); // Debug log 8
-                        
-                        return (
-                          <div 
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
-                            role="button"
-                            aria-label="Seleccionar categoría"
-                          >
-                            {category ? category.name : 'Sin categoría'}
-                          </div>
-                        );
-                      })()}
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <div className="p-2 w-64">
-                        <div className="mb-2 text-sm text-gray-600">
-                          Selecciona o crea una opción
-                        </div>
-                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {categories.map(category => (
-                            <div
-                              key={category.id}
-                              className={`px-2 py-1 rounded cursor-pointer hover:bg-gray-100 flex items-center ${
-                                post.category_id === category.id ? 'bg-gray-100' : ''
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAssignCategory(post.id, category.id);
-                              }}
-                            >
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                getCategoryStyle(category)
-                              }`}>
-                                {category.name}
-                              </span>
-                              {post.category_id === category.id && (
-                                <span className="text-blue-600 ml-auto">✓</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-2 pt-2 border-t">
-                          <Input
-                            size="sm"
-                            placeholder="Nueva categoría..."
-                            value={newCategoryName}
-                            onChange={(e) => setNewCategoryName(e.target.value)}
-                            aria-label="Crear nueva categoría"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyPress={(e) => {
-                              e.stopPropagation();
-                              if (e.key === 'Enter' && newCategoryName.trim()) {
-                                handleCreateCategory();
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <CategoryPopover
+                    category={categories.find(c => c.id === post.category_id)}
+                    categories={categories}
+                    onCreateCategory={() => handleCreateCategory()}
+                    onAssignCategory={(categoryId) => handleAssignCategory(post.id, categoryId)}
+                    newCategoryName={newCategoryName}
+                    onNewCategoryNameChange={(value) => setNewCategoryName(value)}
+                    type="categoría"
+                  />
                 </TableCell>
                 <TableCell>
-                  <Popover placement="bottom-start">
-                    <PopoverTrigger>
-                      {(() => {
-                        const category = categories?.find(c => c?.id === post?.category_id);
-                        const subcategory = subcategories?.find(s => s?.id === post?.subcategory_id);
-                        const style = getCategoryStyle(category);
-                        
-                        return (
-                          <div 
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style}`}
-                            role="button"
-                            aria-label="Seleccionar subcategoría"
-                          >
-                            {subcategory ? subcategory.name : 'Sin subcategoría'}
-                          </div>
-                        );
-                      })()}
-                    </PopoverTrigger>
-                    <PopoverContent>
-                      <div className="p-2 w-64">
-                        <div className="mb-2 text-sm text-gray-600">
-                          {post.category_id ? 'Selecciona o crea una subcategoría' : 'Primero selecciona una categoría'}
-                        </div>
-                        {post.category_id && (
-                          <>
-                            <div className="space-y-1 max-h-48 overflow-y-auto">
-                              {subcategories
-                                .filter(sub => sub.category_id === post.category_id)
-                                .map(subcategory => (
-                                  <div
-                                    key={subcategory.id}
-                                    className={`px-2 py-1 rounded cursor-pointer hover:bg-gray-100 flex items-center ${
-                                      post.subcategory_id === subcategory.id ? 'bg-gray-100' : ''
-                                    }`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleAssignSubcategory(post.id, subcategory.id);
-                                    }}
-                                    role="menuitem"
-                                    aria-label={`Seleccionar subcategoría ${subcategory.name}`}
-                                  >
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      getCategoryStyle(categories.find(c => c.id === post.category_id))
-                                    }`}
-                                    textvalue={subcategory.name}
-                                    >
-                                      {subcategory.name}
-                                    </span>
-                                    {post.subcategory_id === subcategory.id && (
-                                      <span className="text-blue-600 ml-auto">✓</span>
-                                    )}
-                                  </div>
-                                ))}
-                            </div>
-                            <div className="mt-2 pt-2 border-t">
-                              <Input
-                                size="sm"
-                                placeholder="Nueva subcategoría..."
-                                value={newSubcategoryName}
-                                onChange={(e) => setNewSubcategoryName(e.target.value)}
-                                aria-label="Crear nueva subcategoría"
-                                onClick={(e) => e.stopPropagation()}
-                                onKeyPress={(e) => {
-                                  e.stopPropagation();
-                                  if (e.key === 'Enter' && newSubcategoryName.trim()) {
-                                    handleCreateSubcategory(post.category_id);
-                                  }
-                                }}
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <CategoryPopover
+                    category={subcategories.find(s => s.id === post.subcategory_id)}
+                    categories={subcategories.filter(sub => sub.category_id === post.category_id)}
+                    onCreateCategory={() => handleCreateSubcategory(post.category_id)}
+                    onAssignCategory={(subcategoryId) => handleAssignSubcategory(post.id, subcategoryId)}
+                    newCategoryName={newSubcategoryName}
+                    onNewCategoryNameChange={(value) => setNewSubcategoryName(value)}
+                    parentCategory={categories.find(c => c.id === post.category_id)}
+                    type="subcategoría"
+                  />
                 </TableCell>
                 <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
                 <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
