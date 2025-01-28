@@ -9,6 +9,7 @@ import {
   fetchCategories,
   fetchSubcategories 
 } from '@/services/api/categories';
+import { getCategoryStyle } from '@/utils/categoryStyles';
 import { APP_CONFIG } from '@/config/app';
 import { formatDate, formatTime } from '@/utils/dateFormatters';
 import PostFilters from '@/components/filters/PostFilters';
@@ -31,6 +32,33 @@ export default function AnalyticsDashboard() {
 
   // Store sync
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
+
+  // Función auxiliar para extraer el color del texto de la clase de Tailwind
+  const getCategoryColor = (category) => {
+    if (!category) return '#6B7280'; // gray-600 para posts sin categoría
+    
+    const paletteIndex = (category.color_index % 15) + 1;
+    // Mapa de colores correspondiente a categoryPalette en tailwind.config.mjs
+    const colorMap = {
+      1: '#F97316',  // Naranja
+      2: '#DC2626',  // Rojo
+      3: '#16A34A',  // Verde
+      4: '#2563EB',  // Azul
+      5: '#9333EA',  // Morado
+      6: '#DC2626',  // Red
+      7: '#CA8A04',  // Yellow
+      8: '#BE185D',  // Pink
+      9: '#4F46E5',  // Indigo
+      10: '#059669', // Emerald
+      11: '#7C3AED', // Violet
+      12: '#B45309', // Amber
+      13: '#0284C7', // Light Blue
+      14: '#9D174D', // Rose
+      15: '#115E59'  // Teal
+    };
+    
+    return colorMap[paletteIndex];
+  };
 
   // Fetch initial data
   const fetchPostsData = async () => {
@@ -90,35 +118,33 @@ export default function AnalyticsDashboard() {
     const sorted = [...filteredPosts].sort((a, b) => 
       new Date(b.published_at) - new Date(a.published_at)
     );
-
-    const recentPosts = sorted.slice(0, 50);
-    const historicalPosts = sorted.slice(50);
-    const historicalAverage = historicalPosts.length > 0 ? {
-      views: Math.round(historicalPosts.reduce((sum, post) => sum + (post.views || 0), 0) / historicalPosts.length),
-      count: historicalPosts.length
-    } : null;
-
-    return {
-      recentPosts,
-      historicalAverage
-    };
+    return sorted.slice(0, 50); // Tomamos los últimos 50 posts
   }, [filteredPosts]);
 
-  // Configuración del gráfico
-  const chartOptions = {
+  // Series del gráfico
+  const series = useMemo(() => [{
+    name: 'Views',
+    data: chartData.map(post => {
+      const category = categories.find(c => c.id === post.category_id);
+      return {
+        x: post.caption?.slice(0, 30) || `Post ${post.id}`,
+        y: post.views || 0,
+        fillColor: getCategoryColor(category),
+        category: category?.name || 'Sin categoría'
+      };
+    })
+  }], [chartData, categories]);
+
+  // Actualizar chartOptions para mostrar la leyenda
+  const chartOptions = useMemo(() => ({
     chart: {
       type: 'scatter',
       zoom: { enabled: true, type: 'xy' },
-      toolbar: { show: true },
-      padding: {
-        bottom: 20
-      }
+      toolbar: { show: true }
     },
     markers: {
-      size: 8,
-      hover: {
-        size: 10
-      }
+      size: 10,
+      hover: { size: 12 }
     },
     xaxis: {
       type: 'category',
@@ -132,22 +158,22 @@ export default function AnalyticsDashboard() {
       title: { text: 'Views' },
       labels: {
         formatter: (val) => {
-          if (val >= 1000000) {
-            return `${(val / 1000000).toFixed(1)}M`;
-          } else if (val >= 1000) {
-            return `${(val / 1000).toFixed(0)}K`;
-          }
+          if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+          if (val >= 1000) return `${(val / 1000).toFixed(0)}K`;
           return val;
         }
-      },
-      tickAmount: 6
+      }
     },
     tooltip: {
       y: {
         formatter: (val) => val.toLocaleString()
       }
+    },
+    legend: {
+      show: true,
+      position: 'top'
     }
-  };
+  }), []);
 
   // Effect para cargar datos iniciales
   useEffect(() => {
@@ -230,15 +256,7 @@ export default function AnalyticsDashboard() {
       <div className="bg-white p-6 rounded-lg shadow">
         <Chart
           options={chartOptions}
-          series={[{
-            name: 'Posts',
-            data: chartData.recentPosts.map((post, index) => ({
-              x: post.caption?.slice(0, 30) || `Post ${index + 1}`,
-              y: post.views || 0,
-              mediaType: post.media_type,
-              category: post.category_id
-            }))
-          }]}
+          series={series}
           type="scatter"
           height={700}
         />

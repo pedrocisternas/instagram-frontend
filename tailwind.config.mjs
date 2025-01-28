@@ -64,6 +64,25 @@ export default {
           13: { text: '#0284C7', bg: '#F0F9FF' }, // Light Blue
           14: { text: '#9D174D', bg: '#FDF2F8' }, // Rose
           15: { text: '#115E59', bg: '#F0FDFA' }, // Teal
+        },
+        // Nueva paleta para gráficos que usa los mismos colores que las categorías
+        chartPalette: {
+          1: '#EA580C',  // Naranja
+          2: '#DC2626',  // Rojo
+          3: '#16A34A',  // Verde
+          4: '#2563EB',  // Azul
+          5: '#9333EA',  // Morado
+          6: '#DC2626',  // Red
+          7: '#CA8A04',  // Yellow
+          8: '#BE185D',  // Pink
+          9: '#4F46E5',  // Indigo
+          10: '#059669', // Emerald
+          11: '#7C3AED', // Violet
+          12: '#B45309', // Amber
+          13: '#0284C7', // Light Blue
+          14: '#9D174D', // Rose
+          15: '#115E59',  // Teal
+          default: '#6B7280' // Para items sin categoría
         }
       },
     },

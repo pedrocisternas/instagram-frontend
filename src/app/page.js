@@ -143,32 +143,6 @@ export default function Home() {
     }
   };
 
-  // Función helper para obtener el estilo del tipo de medio
-  const getMediaTypeStyle = (mediaType) => {
-    const styles = {
-      VIDEO: 'bg-mediaType-reel-bg text-mediaType-reel-text',
-      REEL: 'bg-mediaType-reel-bg text-mediaType-reel-text',
-      CAROUSEL_ALBUM: 'bg-mediaType-carousel-bg text-mediaType-carousel-text',
-      IMAGE: 'bg-mediaType-image-bg text-mediaType-image-text'
-    };
-    return styles[mediaType] || 'bg-gray-100 text-gray-600';
-  };
-
-  // Función para normalizar el tipo de media
-  const getMediaTypeLabel = (mediaType) => {
-    switch (mediaType) {
-      case 'VIDEO':
-      case 'REEL':
-        return 'Reel';
-      case 'CAROUSEL_ALBUM':
-        return 'Carrusel';
-      case 'IMAGE':
-        return 'Imagen';
-      default:
-        return mediaType;
-    }
-  };
-
   // Función para cargar categorías
   const fetchCategoriesData = async () => {
     try {
@@ -218,22 +192,6 @@ export default function Home() {
       console.error('Error assigning category:', err);
       setAllPosts(previousPosts); // Revertimos en caso de error
     }
-  };
-
-  // Función helper para obtener el color de categoría basado en su color_index
-  const getCategoryStyle = (category) => {
-    console.log('Category received:', category); // Debug log 1
-    if (!category) {
-      console.log('No category provided, returning default style'); // Debug log 2
-      return 'bg-gray-100 text-gray-600';
-    }
-    
-    const paletteIndex = (category.color_index % 15) + 1;
-    const styleClass = `bg-categoryPalette-${paletteIndex}-bg text-categoryPalette-${paletteIndex}-text`;
-    console.log('Color index:', category.color_index); // Debug log 3
-    console.log('Palette index:', paletteIndex); // Debug log 4
-    console.log('Style class generated:', styleClass); // Debug log 5
-    return styleClass;
   };
 
   // Actualizar la URL cuando cambia la página
