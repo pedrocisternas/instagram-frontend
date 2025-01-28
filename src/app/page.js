@@ -386,6 +386,7 @@ export default function Home() {
                     onNewCategoryNameChange={(value) => setNewSubcategoryName(value)}
                     parentCategory={categories.find(c => c.id === post.category_id)}
                     type="subcategoría"
+                    className="min-w-[200px]"
                   />
                 </TableCell>
                 <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>

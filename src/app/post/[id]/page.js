@@ -158,16 +158,24 @@ export default function PostPage() {
           <div className="lg:w-[50%]">
             <Card className="h-full">
               <CardBody>
-                {post?.media_url && (
+                {(post?.media_url || post?.thumbnail_url) && (
                   <div className="aspect-[16/9] h-[calc(100vh-12rem)]">
-                    <video 
-                      className="w-full h-full object-contain rounded-lg"
-                      controls
-                      src={post.media_url}
-                      poster={post.thumbnail_url}
-                    >
-                      Tu navegador no soporta el elemento video.
-                    </video>
+                    {post.media_url ? (
+                      <video 
+                        className="w-full h-full object-contain rounded-lg"
+                        controls
+                        src={post.media_url}
+                        poster={post.thumbnail_url}
+                      >
+                        Tu navegador no soporta el elemento video.
+                      </video>
+                    ) : (
+                      <img 
+                        className="w-full h-full object-contain rounded-lg"
+                        src={post.thumbnail_url}
+                        alt="Thumbnail del video"
+                      />
+                    )}
                   </div>
                 )}
               </CardBody>
@@ -192,7 +200,7 @@ export default function PostPage() {
                       />
                     </div>
                   </div>
-                  <div className="w-36">
+                  <div className="w-48">
                     <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
                     <div className="min-h-[28px] flex items-center">
                       <CategoryPopover
