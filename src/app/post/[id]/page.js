@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { Button, Card, CardBody, Divider } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
+import { getCategoryStyle } from '@/utils/categoryStyles';
+import { fetchCategories, fetchSubcategories } from '@/services/api/categories';
 
 export default function PostPage() {
   const router = useRouter();
@@ -12,6 +14,8 @@ export default function PostPage() {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -41,8 +45,32 @@ export default function PostPage() {
     }
   }, [id]);
 
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categoriesData = await fetchCategories(APP_CONFIG.USERNAME);
+        setCategories(categoriesData);
+
+        // Cargar subcategorías para todas las categorías
+        const subcategoriesPromises = categoriesData.map(category =>
+          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
+        );
+        const subcategoriesResults = await Promise.all(subcategoriesPromises);
+        setSubcategories(subcategoriesResults.flat());
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+
+    loadCategories();
+  }, []);
+
   const formatNumber = (num) => new Intl.NumberFormat('es-CL').format(num);
   const formatSeconds = (seconds) => `${seconds.toFixed(2)}s`;
+
+  // Función auxiliar para obtener la categoría y subcategoría actual
+  const currentCategory = categories.find(c => c.id === post?.category_id);
+  const currentSubcategory = subcategories.find(s => s.id === post?.subcategory_id);
 
   if (loading) return (
     <div className="p-8">
@@ -97,6 +125,31 @@ export default function PostPage() {
 
           {/* Metrics Container - Right Side */}
           <div className="lg:w-[50%] space-y-4">
+            {/* Categorizaciones Card */}
+            <Card>
+              <CardBody>
+                <h3 className="text-lg font-semibold mb-4">Categorizaciones</h3>
+                <div className="flex gap-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Categoría</p>
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      getCategoryStyle(post?.category)
+                    }`}>
+                      {post?.category ? post.category.name : 'Sin categoría'}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
+                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      getCategoryStyle(post?.category)
+                    }`}>
+                      {post?.subcategory ? post.subcategory.name : 'Sin subcategoría'}
+                    </div>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+
             {/* Engagement Metrics */}
             <Card>
               <CardBody>
