@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Button, Card, CardBody, Divider } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
-
-const USERNAME = "pirucisternas";
+import { APP_CONFIG } from '@/config/app';
 
 export default function PostPage() {
   const router = useRouter();
@@ -17,20 +16,29 @@ export default function PostPage() {
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:3001/api/posts/${id}?username=${USERNAME}`
-        );
-        if (!response.ok) throw new Error('Post not found');
+        console.log('Fetching post with ID:', id);
+        const url = `${APP_CONFIG.API_URL}/api/posts/${id}?username=${APP_CONFIG.USERNAME}`;
+        console.log('Request URL:', url);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Response error:', response.status, errorText);
+          throw new Error(`Post not found (${response.status})`);
+        }
         const data = await response.json();
         setPost(data.post);
       } catch (err) {
+        console.error('Fetch error:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPost();
+    if (id) {
+      fetchPost();
+    }
   }, [id]);
 
   const formatNumber = (num) => new Intl.NumberFormat('es-CL').format(num);

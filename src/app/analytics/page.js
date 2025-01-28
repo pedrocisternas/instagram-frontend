@@ -13,6 +13,7 @@ import { getCategoryStyle } from '@/utils/categoryStyles';
 import { APP_CONFIG } from '@/config/app';
 import { formatDate, formatTime } from '@/utils/dateFormatters';
 import PostFilters from '@/components/filters/PostFilters';
+import { useRouter } from 'next/navigation';
 
 // Importamos ApexCharts de forma dinámica para evitar errores de SSR
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -32,6 +33,8 @@ export default function AnalyticsDashboard() {
 
   // Store sync
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
+
+  const router = useRouter();
 
   // Función auxiliar para extraer el color del texto de la clase de Tailwind
   const getCategoryColor = (category) => {
@@ -140,6 +143,7 @@ export default function AnalyticsDashboard() {
       categoryGroups[categoryName].data.push({
         x: new Date(post.published_at).getTime(),
         y: post.views || 0,
+        postId: post.instagram_post_id,
         views: post.views || 0,
         caption: post.caption || '',
         published_at: post.published_at
@@ -176,6 +180,15 @@ export default function AnalyticsDashboard() {
           zoomout: true,
           pan: true,
           reset: true
+        }
+      },
+      events: {
+        dataPointSelection: (event, chartContext, config) => {
+          const dataPoint = config.w.config.series[config.seriesIndex].data[config.dataPointIndex];
+          if (dataPoint.postId) {
+            console.log('Navigating to Instagram post:', dataPoint.postId);
+            router.push(`/post/${dataPoint.postId}`);
+          }
         }
       }
     },
@@ -277,7 +290,7 @@ export default function AnalyticsDashboard() {
         }
       }]
     }
-  }), [averageViews]);
+  }), [averageViews, router]);
 
   // Effect para cargar datos iniciales
   useEffect(() => {
