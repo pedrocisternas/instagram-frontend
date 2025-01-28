@@ -132,6 +132,7 @@ export default function AnalyticsDashboard() {
         categoryGroups[categoryName] = {
           name: categoryName,
           type: 'scatter',
+          color: getCategoryColor(category),
           data: []
         };
       }
@@ -227,9 +228,9 @@ export default function AnalyticsDashboard() {
         
         return `
           <div class="p-2">
-            <div class="text-gray-600">${(point.caption || 'Sin descripción').length > 30 ? `${(point.caption || 'Sin descripción').substring(0, 30)}...` : (point.caption || 'Sin descripción')}</div>
-            <div class="font-medium">${views} Views</div>
-            <div class="text-sm">${date}</div>
+            <div class="font-medium">${(point.caption || 'Sin descripción').length > 30 ? `${(point.caption || 'Sin descripción').substring(0, 30)}...` : (point.caption || 'Sin descripción')}</div>
+            <div class="text-gray-600">${views} Views</div>
+            <div class="text-gray-600">${date}</div>
           </div>
         `;
       },
@@ -268,10 +269,11 @@ export default function AnalyticsDashboard() {
               right: 10
             }
           },
-          text: `Promedio: ${averageViews >= 1000 ? `${(averageViews / 1000).toFixed(1)}K` : averageViews}`,
-          position: 'right',
-          offsetX: 10,
-          textAnchor: 'start'
+          text: `${averageViews >= 1000 ? `${(averageViews / 1000).toFixed(1)}K` : averageViews}`,
+          position: 'left',
+          offsetX: -13,
+          offsetY: 7,
+          textAnchor: 'end'
         }
       }]
     }
