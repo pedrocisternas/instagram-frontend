@@ -19,7 +19,7 @@ import {
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
 import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel';
-import { fetchPosts, syncPosts } from '@/services/api/posts';
+import { fetchPosts, syncPosts, fetchDashboardData } from '@/services/api/posts';
 import { 
   fetchCategories, 
   createCategory, 
@@ -64,28 +64,15 @@ export default function Home() {
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
 
-  // Funciones
   const fetchAllData = async () => {
     setIsInitialLoading(true);
     try {
-      // 1. Cargar categorías primero
-      const categoriesData = await fetchCategories(APP_CONFIG.USERNAME);
-      setCategories(categoriesData);
-
-      // 2. Cargar subcategorías
-      if (categoriesData?.length) {
-        const subcategoriesPromises = categoriesData.map(category =>
-          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
-        );
-        const subcategoriesResults = await Promise.all(subcategoriesPromises);
-        setSubcategories(subcategoriesResults.flat());
-      }
-
-      // 3. Finalmente cargar posts
-      const { posts } = await fetchPosts(APP_CONFIG.USERNAME);
-      setAllPosts(posts);
+      const data = await fetchDashboardData(APP_CONFIG.USERNAME);
+      setAllPosts(data.posts);
+      setCategories(data.categories);
+      setSubcategories(data.subcategories);
     } catch (error) {
-      console.error('Error loading initial data:', error);
+      console.error('Error loading dashboard data:', error);
       setError(error.message);
     } finally {
       setIsInitialLoading(false);
@@ -94,7 +81,7 @@ export default function Home() {
 
   const syncAllPages = async () => {
     try {
-      await syncMetrics(); // Usamos la función del store
+      await syncMetrics();
       await fetchAllData();
     } catch (err) {
       setError(err.message);

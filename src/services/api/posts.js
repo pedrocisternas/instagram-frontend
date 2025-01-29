@@ -22,3 +22,13 @@ export async function syncPosts(username) {
   }
   return response.json();
 }
+
+export async function fetchDashboardData(username) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/posts/dashboard?username=${username}`
+  );
+  if (!response.ok) {
+    throw new Error('Error fetching dashboard data');
+  }
+  return response.json();
+}
