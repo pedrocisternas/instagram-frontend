@@ -59,32 +59,43 @@ export default function Home() {
   const [subcategories, setSubcategories] = useState([]);
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [selectedSubcategories, setSelectedSubcategories] = useState(new Set([]));
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
 
   // Funciones
-  const fetchPostsData = async () => {
+  const fetchAllData = async () => {
+    setIsInitialLoading(true);
     try {
-      const data = await fetchPosts(APP_CONFIG.USERNAME);
-      setAllPosts(data.posts);
-      if (data.posts.length > 0) {
-        const latestUpdate = data.posts.reduce((latest, post) => {
-          return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
-        }, data.posts[0].metrics_updated_at);
-        setLastUpdate(latestUpdate); // Usamos el setter del store
+      // 1. Cargar categorías primero
+      const categoriesData = await fetchCategories(APP_CONFIG.USERNAME);
+      setCategories(categoriesData);
+
+      // 2. Cargar subcategorías
+      if (categoriesData?.length) {
+        const subcategoriesPromises = categoriesData.map(category =>
+          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
+        );
+        const subcategoriesResults = await Promise.all(subcategoriesPromises);
+        setSubcategories(subcategoriesResults.flat());
       }
-    } catch (err) {
-      setError(err.message);
+
+      // 3. Finalmente cargar posts
+      const { posts } = await fetchPosts(APP_CONFIG.USERNAME);
+      setAllPosts(posts);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      setError(error.message);
     } finally {
-      setLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
   const syncAllPages = async () => {
     try {
       await syncMetrics(); // Usamos la función del store
-      await fetchPostsData();
+      await fetchAllData();
     } catch (err) {
       setError(err.message);
     }
@@ -203,9 +214,8 @@ export default function Home() {
 
   // Effects
   useEffect(() => {
-    fetchPostsData();
-    fetchCategoriesData();
-  }, []); // Solo se ejecuta una vez al montar
+    fetchAllData();
+  }, []);
 
   const handleCreateSubcategory = async (categoryId) => {
     try {
@@ -238,33 +248,53 @@ export default function Home() {
     }
   };
 
-  // Modificar el useEffect para cargar subcategorías
-  useEffect(() => {
-    const loadSubcategories = async () => {
-      try {
-        const promises = categories.map(category => 
-          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
-        );
-        
-        const results = await Promise.all(promises);
-        const allSubcategories = results.flat();
-        setSubcategories(allSubcategories);
-      } catch (error) {
-        console.error('Error loading subcategories:', error);
-      }
-    };
-
-    if (categories.length > 0) {
-      loadSubcategories();
-    }
-  }, [categories]);
-
   // Limpiar subcategorías cuando cambian las categorías seleccionadas
   useEffect(() => {
     setSelectedSubcategories(new Set([]));
   }, [selectedCategories]);
 
   // Render
+  if (isInitialLoading) {
+    return (
+      <main className="p-8 bg-gray-50">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <Skeleton className="h-10 w-40" />
+            <Skeleton className="h-4 w-60 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+
+        <Table removeWrapper aria-label="Instagram posts table">
+          <TableHeader>
+            <TableColumn width={300}>Caption</TableColumn>
+            <TableColumn width={100}>Tipo</TableColumn>
+            <TableColumn width={200}>Categoría</TableColumn>
+            <TableColumn width={200}>Subcategoría</TableColumn>
+            <TableColumn width={100}>Fecha</TableColumn>
+            <TableColumn width={80}>Hora</TableColumn>
+            <TableColumn width={100}>Views</TableColumn>
+            <TableColumn width={100}>Likes</TableColumn>
+            <TableColumn width={100}>Saves</TableColumn>
+            <TableColumn width={100}>Shares</TableColumn>
+            <TableColumn width={100}>Comments</TableColumn>
+          </TableHeader>
+          <TableBody>
+            {Array(10).fill(null).map((_, index) => (
+              <TableRow key={index}>
+                {Array(11).fill(null).map((_, cellIndex) => (
+                  <TableCell key={cellIndex}>
+                    <Skeleton className="h-4 w-full" />
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </main>
+    );
+  }
+
   if (error) return <div>Error: {error}</div>;
 
   return (
