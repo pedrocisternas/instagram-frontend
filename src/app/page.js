@@ -8,13 +8,7 @@ import {
   TableRow,
   TableCell,
   Button,
-  Skeleton,
-  Select,
-  SelectItem,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  Input
+  Skeleton
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
@@ -29,7 +23,6 @@ import {
   assignSubcategoryToPost
 } from '@/services/api/categories';
 import { MEDIA_TYPES, getMediaTypeStyle } from '@/utils/mediaTypes';
-import { getCategoryStyle } from '@/utils/categoryStyles';
 import PostFilters from '@/components/filters/PostFilters';
 import { APP_CONFIG } from '@/config/app';
 import { useSyncStore } from '@/store/sync';
