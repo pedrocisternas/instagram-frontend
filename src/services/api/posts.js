@@ -32,3 +32,22 @@ export async function fetchDashboardData(username) {
   }
   return response.json();
 }
+
+// Nueva función para obtener los detalles de un post
+export async function fetchPostDetails(postId, username) {
+  if (!postId) throw new Error('Post ID is required');
+  if (!username) throw new Error('Username is required');
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/posts/${postId}/details?username=${username}`
+  );
+  
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Post not found');
+    }
+    throw new Error('Error fetching post details');
+  }
+  
+  return response.json();
+}

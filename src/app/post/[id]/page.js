@@ -14,34 +14,72 @@ import {
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { fetchPostDetails } from '@/services/api/posts';
 
 export default function PostPage() {
   const router = useRouter();
   const { id } = useParams();
-  const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Estado unificado para todos los detalles del post
+  const [details, setDetails] = useState({
+    post: null,
+    currentCategory: null,
+    currentSubcategory: null,
+    categories: [],
+    subcategories: [],
+    transcript: null
+  });
+
+  // Función para recargar los detalles del post
+  const reloadPostDetails = async () => {
+    try {
+      const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
+      setDetails(data);
+    } catch (err) {
+      console.error('Error reloading post details:', err);
+      setError(err.message);
+    }
+  };
+
+  // Manejador para asignar categoría
+  const handleAssignCategory = async (categoryId) => {
+    try {
+      await assignCategoryToPost(APP_CONFIG.USERNAME, categoryId, id);
+      const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
+      setDetails(data);
+    } catch (error) {
+      console.error('Error assigning category:', error);
+    }
+  };
+
+  // Manejador para asignar subcategoría
+  const handleAssignSubcategory = async (subcategoryId) => {
+    try {
+      await assignSubcategoryToPost(APP_CONFIG.USERNAME, subcategoryId, id);
+      const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
+      setDetails(data);
+    } catch (error) {
+      console.error('Error assigning subcategory:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchPost = async () => {
+    const loadPostDetails = async () => {
       try {
-        console.log('Fetching post with ID:', id);
-        const url = `${APP_CONFIG.API_URL}/api/posts/${id}?username=${APP_CONFIG.USERNAME}`;
-        console.log('Request URL:', url);
+        setLoading(true);
+        console.log('Fetching post details for ID:', id);
         
-        const response = await fetch(url);
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Response error:', response.status, errorText);
-          throw new Error(`Post not found (${response.status})`);
-        }
-        const data = await response.json();
-        setPost(data.post);
+        const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
+        console.log('Received post details:', data);
+        console.log('Transcript in response:', data.transcript);
+        
+        setDetails(data);
+        
       } catch (err) {
-        console.error('Fetch error:', err);
+        console.error('Error loading post details:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -49,81 +87,41 @@ export default function PostPage() {
     };
 
     if (id) {
-      fetchPost();
+      loadPostDetails();
     }
   }, [id]);
-
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const categoriesData = await fetchCategories(APP_CONFIG.USERNAME);
-        setCategories(categoriesData);
-
-        // Cargar subcategorías para todas las categorías
-        const subcategoriesPromises = categoriesData.map(category =>
-          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
-        );
-        const subcategoriesResults = await Promise.all(subcategoriesPromises);
-        setSubcategories(subcategoriesResults.flat());
-      } catch (error) {
-        console.error('Error loading categories:', error);
-      }
-    };
-
-    loadCategories();
-  }, []);
 
   const formatNumber = (num) => new Intl.NumberFormat('es-CL').format(num);
   const formatSeconds = (seconds) => `${seconds.toFixed(2)}s`;
 
-  // Función auxiliar para obtener la categoría y subcategoría actual
-  const currentCategory = categories.find(c => c.id === post?.category_id);
-  const currentSubcategory = subcategories.find(s => s.id === post?.subcategory_id);
+  if (loading) return (
+    <div className="p-8">
+      <div className="animate-pulse">
+        <div className="h-8 w-64 bg-gray-200 rounded mb-4"></div>
+        <div className="flex justify-center gap-4">
+          {/* Video skeleton */}
+          <div className="w-[400px]">
+            <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
+          </div>
+          {/* Metrics skeleton */}
+          <div className="w-[400px] space-y-4">
+            <div className="h-40 bg-gray-200 rounded"></div>
+            <div className="h-40 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
-  const handleAssignCategory = async (categoryId) => {
-    const previousPost = post;
-    
-    // Actualización optimista
-    setPost(currentPost => ({
-      ...currentPost,
-      category_id: categoryId,
-      subcategory_id: null // Limpiamos la subcategoría cuando cambia la categoría
-    }));
+  if (error) return (
+    <div className="p-8">
+      <div className="text-red-500">Error: {error}</div>
+    </div>
+  );
 
-    try {
-      // Notar que aquí esperamos { post }, no { post: updatedPost }
-      const { post: updatedPost } = await assignCategoryToPost(APP_CONFIG.USERNAME, categoryId, post.id);
-      
-      // Actualizamos con el post retornado por la API
-      setPost(updatedPost);
-      document.body.click(); // Cerramos el popover
-    } catch (error) {
-      console.error('Error assigning category:', error);
-      setPost(previousPost); // Revertimos en caso de error
-    }
-  };
-
-  const handleAssignSubcategory = async (subcategoryId) => {
-    const previousPost = post;
-    
-    // Actualización optimista
-    setPost(currentPost => ({
-      ...currentPost,
-      subcategory_id: subcategoryId
-    }));
-
-    try {
-      // Notar que aquí esperamos { post }, no { post: updatedPost }
-      const { post: updatedPost } = await assignSubcategoryToPost(APP_CONFIG.USERNAME, subcategoryId, post.id);
-      
-      // Actualizamos con el post retornado por la API
-      setPost(updatedPost);
-      document.body.click(); // Cerramos el popover
-    } catch (error) {
-      console.error('Error assigning subcategory:', error);
-      setPost(previousPost); // Revertimos en caso de error
-    }
-  };
+  const { post, currentCategory, currentSubcategory, categories, subcategories, transcript } = details;
+  
+  console.log('Transcript after destructuring:', transcript);
 
   const handleTranscribe = async () => {
     try {
@@ -147,22 +145,6 @@ export default function PostPage() {
       console.error('Error al transcribir:', error);
     }
   };
-
-  if (loading) return (
-    <div className="p-8">
-      <div className="animate-pulse">
-        <div className="h-8 w-64 bg-gray-200 rounded mb-4"></div>
-        <div className="h-4 w-full bg-gray-200 rounded mb-2"></div>
-        <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
-      </div>
-    </div>
-  );
-
-  if (error) return (
-    <div className="p-8">
-      <div className="text-red-500">Error: {error}</div>
-    </div>
-  );
 
   return (
     <main className="p-4">
@@ -333,9 +315,25 @@ export default function PostPage() {
                   </div>
                   
                   <div className="mt-4 space-y-2">
-                    <p className="text-gray-600">
-                      No hay transcripción disponible.
-                    </p>
+                    {transcript ? (
+                      <div className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[1000px]' : 'max-h-20'}`}>
+                        <p className="text-sm text-gray-600">{transcript.full_text}</p>
+                        {isExpanded && transcript.segments && (
+                          <div className="mt-4 space-y-2">
+                            {transcript.segments.map((segment, index) => (
+                              <div key={index} className="text-xs text-gray-500">
+                                <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
+                                <span className="ml-2">{segment.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-gray-600">
+                        No hay transcripción disponible.
+                      </p>
+                    )}
                   </div>
                 </CardBody>
               </Card>
