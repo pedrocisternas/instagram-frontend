@@ -64,6 +64,14 @@ export default function Home() {
       setAllPosts(data.posts);
       setCategories(data.categories);
       setSubcategories(data.subcategories);
+
+      // Agregar lógica para última actualización
+      if (data.posts.length > 0) {
+        const latestUpdate = data.posts.reduce((latest, post) => {
+          return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
+        }, data.posts[0].metrics_updated_at);
+        setLastUpdate(latestUpdate);
+      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setError(error.message);

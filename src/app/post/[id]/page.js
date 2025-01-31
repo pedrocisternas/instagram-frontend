@@ -120,22 +120,42 @@ export default function PostPage() {
   const formatSeconds = (seconds) => `${seconds.toFixed(2)}s`;
 
   if (loading) return (
-    <div className="p-8">
-      <div className="animate-pulse">
-        <div className="h-8 w-64 bg-gray-200 rounded mb-4"></div>
-        <div className="flex justify-center gap-4">
-          {/* Video skeleton */}
-          <div className="w-[400px]">
-            <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-          </div>
-          {/* Metrics skeleton */}
-          <div className="w-[400px] space-y-4">
-            <div className="h-40 bg-gray-200 rounded"></div>
-            <div className="h-40 bg-gray-200 rounded"></div>
+    <main className="p-4">
+      <div className="container mx-auto">
+        {/* Header skeleton */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="h-8 w-48 bg-gray-200 rounded"></div>
+          <div className="h-10 w-24 bg-gray-200 rounded"></div>
+        </div>
+
+        {/* Main content grid */}
+        <div className="max-w-[1280px] mx-auto">
+          <div className="grid grid-cols-3 gap-4 h-[calc(100vh-180px)]">
+            {/* Column 1 - Video */}
+            <div className="flex flex-col h-full">
+              <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
+            </div>
+
+            {/* Column 2 - Metrics */}
+            <div className="flex flex-col h-full space-y-4">
+              {/* Categorizations card */}
+              <div className="h-32 bg-gray-200 rounded-xl"></div>
+              {/* Engagement card */}
+              <div className="h-48 bg-gray-200 rounded-xl"></div>
+              {/* Video Performance card */}
+              <div className="h-48 bg-gray-200 rounded-xl"></div>
+              {/* Details card */}
+              <div className="h-40 bg-gray-200 rounded-xl"></div>
+            </div>
+
+            {/* Column 3 - Transcript */}
+            <div className="flex flex-col h-full">
+              <div className="flex-1 bg-gray-200 rounded-xl"></div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 
   if (error) return (
@@ -181,13 +201,19 @@ export default function PostPage() {
             {/* Columna 1 - Video */}
             <div className="flex flex-col h-full">
               <div className="aspect-[9/16] rounded-xl overflow-hidden border-2 border-black bg-black">
-                {post?.media_url && (
+                {post?.media_url ? (
                   <video
                     src={post.media_url}
                     controls
                     className="w-full h-full object-contain"
                   />
-                )}
+                ) : post?.thumbnail_url ? (
+                  <img
+                    src={post.thumbnail_url}
+                    alt="Post thumbnail"
+                    className="w-full h-full object-contain"
+                  />
+                ) : null}
               </div>
             </div>
 

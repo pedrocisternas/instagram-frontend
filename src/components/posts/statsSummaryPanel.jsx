@@ -26,7 +26,6 @@ export default function StatsSummaryPanel({ posts }) {
   const calculateAverage = (metric, filterFn = null) => {
     let filteredPosts = posts?.filter(hasMetrics) || [];
     
-    // Aplicar filtro adicional si existe (como el de reels para views)
     if (filterFn) {
       filteredPosts = filteredPosts.filter(filterFn);
     }
@@ -37,6 +36,20 @@ export default function StatsSummaryPanel({ posts }) {
   };
 
   const metrics = [
+    { 
+      label: "Publicaciones", 
+      key: "total_count",
+      subtitle: "con métricas",
+      value: posts?.filter(hasMetrics).length || 0,
+      formatter: (val) => val.toLocaleString()
+    },
+    { 
+      label: "Reels/Videos", 
+      key: "reels_count",
+      subtitle: "con métricas",
+      value: posts?.filter(isValidReel).length || 0,
+      formatter: (val) => val.toLocaleString()
+    },
     { 
       label: "Promedio Views", 
       key: "views",
@@ -50,13 +63,14 @@ export default function StatsSummaryPanel({ posts }) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-      {metrics.map(({ label, key, subtitle, filterFn }) => (
+    <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+      {metrics.map(({ label, key, subtitle, filterFn, value, formatter }) => (
         <StatItem
           key={key}
           label={label}
           subtitle={subtitle}
-          value={calculateAverage(key, filterFn)}
+          value={value !== undefined ? value : calculateAverage(key, filterFn)}
+          formatter={formatter}
         />
       ))}
     </div>

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   HomeIcon, 
   ChartBarIcon,
+  Square3Stack3DIcon
 } from '@heroicons/react/24/outline';
 import { APP_CONFIG } from '@/config/app';
 import Image from 'next/image';
@@ -19,6 +20,11 @@ const menuItems = [
     name: 'Analytics',
     icon: ChartBarIcon,
     path: '/analytics',
+  },
+  {
+    name: 'Rankings',
+    icon: Square3Stack3DIcon,
+    path: '/rankings',
   },
 ];
 
