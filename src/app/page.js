@@ -29,12 +29,13 @@ import { useSyncStore } from '@/store/sync';
 import CategoryPopover from '@/components/categories/CategoryPopover';
 import SyncButton from '@/components/buttons/SyncButton';
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
+import { generateInsights } from '@/services/api/insights';
 
 // Componente Principal
 export default function Home() {
   const router = useRouter();
   // Estados
-  const [allPosts, setAllPosts] = useState([]); // Todos los posts
+  const [allPosts, setAllPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(() => {
@@ -243,6 +244,28 @@ export default function Home() {
     setSelectedSubcategories(new Set([]));
   }, [selectedCategories]);
 
+  // Agregar esta función
+  const handleGenerateInsights = async () => {
+    try {
+      console.log('Iniciando generación de insights...');
+      console.log('Total posts filtrados:', filteredPosts.length);
+      
+      // Agregamos validación de cantidad mínima
+      if (filteredPosts.length < 3) {
+        throw new Error('Se necesitan al menos 3 posts para generar insights');
+      }
+      
+      const insights = await generateInsights(filteredPosts);
+      console.log('Insights recibidos:', insights);
+      
+      // Aquí podríamos mostrar los insights en un modal o en una nueva vista
+      
+    } catch (error) {
+      console.error('Error generating insights:', error);
+      setError(error.message);
+    }
+  };
+
   // Render
   if (isInitialLoading) {
     return <DashboardSkeleton />;
@@ -253,12 +276,18 @@ export default function Home() {
   return (
     <main className="p-8 bg-gray-50">
       <div className="flex justify-between items-start mb-6">
-        <div>
+        <div className="flex gap-2">
           <SyncButton
             isSyncing={isSyncing}
             onSync={syncAllPages}
             lastUpdate={lastUpdate}
           />
+          <Button 
+            color="secondary"
+            onPress={handleGenerateInsights}
+          >
+            Generar Insights
+          </Button>
         </div>
         
         <PostFilters 
