@@ -14,6 +14,7 @@ import { APP_CONFIG } from '@/config/app';
 import { formatDate, formatTime } from '@/utils/dateFormatters';
 import PostFilters from '@/components/filters/PostFilters';
 import { useRouter } from 'next/navigation';
+import AnalyticsSkeleton from '@/components/analytics/AnalyticsSkeleton';
 
 // Importamos ApexCharts de forma dinámica para evitar errores de SSR
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -331,7 +332,7 @@ export default function AnalyticsDashboard() {
     loadSubcategories();
   }, [categories]);
 
-  if (loading) return <div className="p-8">Cargando...</div>;
+  if (loading) return <AnalyticsSkeleton />;
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
   if (!chartData || chartData.length === 0) return <div className="p-8">No hay datos disponibles</div>;
 
