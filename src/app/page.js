@@ -13,7 +13,7 @@ import {
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
 import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel';
-import { fetchPosts, syncPosts, fetchDashboardData } from '@/services/api/posts';
+import { fetchDashboardData } from '@/services/api/posts';
 import { 
   fetchCategories, 
   createCategory, 
@@ -27,6 +27,8 @@ import PostFilters from '@/components/filters/PostFilters';
 import { APP_CONFIG } from '@/config/app';
 import { useSyncStore } from '@/store/sync';
 import CategoryPopover from '@/components/categories/CategoryPopover';
+import SyncButton from '@/components/buttons/SyncButton';
+import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 
 // Componente Principal
 export default function Home() {
@@ -243,44 +245,7 @@ export default function Home() {
 
   // Render
   if (isInitialLoading) {
-    return (
-      <main className="p-8 bg-gray-50">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <Skeleton className="h-10 w-40" />
-            <Skeleton className="h-4 w-60 mt-2" />
-          </div>
-          <Skeleton className="h-10 w-40" />
-        </div>
-
-        <Table removeWrapper aria-label="Instagram posts table">
-          <TableHeader>
-            <TableColumn width={300}>Caption</TableColumn>
-            <TableColumn width={100}>Tipo</TableColumn>
-            <TableColumn width={200}>Categoría</TableColumn>
-            <TableColumn width={200}>Subcategoría</TableColumn>
-            <TableColumn width={100}>Fecha</TableColumn>
-            <TableColumn width={80}>Hora</TableColumn>
-            <TableColumn width={100}>Views</TableColumn>
-            <TableColumn width={100}>Likes</TableColumn>
-            <TableColumn width={100}>Saves</TableColumn>
-            <TableColumn width={100}>Shares</TableColumn>
-            <TableColumn width={100}>Comments</TableColumn>
-          </TableHeader>
-          <TableBody>
-            {Array(10).fill(null).map((_, index) => (
-              <TableRow key={index}>
-                {Array(11).fill(null).map((_, cellIndex) => (
-                  <TableCell key={cellIndex}>
-                    <Skeleton className="h-4 w-full" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </main>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) return <div>Error: {error}</div>;
@@ -289,18 +254,11 @@ export default function Home() {
     <main className="p-8 bg-gray-50">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <Button
-            color="primary"
-            isLoading={isSyncing}
-            onPress={syncAllPages}
-          >
-            {isSyncing ? 'Sincronizando...' : 'Actualizar Métricas'}
-          </Button>
-          {lastUpdate && (
-            <p className="text-sm text-gray-600 mt-1">
-              Última actualización: {formatDate(lastUpdate)} {formatTime(lastUpdate)}
-            </p>
-          )}
+          <SyncButton
+            isSyncing={isSyncing}
+            onSync={syncAllPages}
+            lastUpdate={lastUpdate}
+          />
         </div>
         
         <PostFilters 

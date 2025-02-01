@@ -9,12 +9,12 @@ import {
   fetchCategories,
   fetchSubcategories 
 } from '@/services/api/categories';
-import { getCategoryStyle } from '@/utils/categoryStyles';
 import { APP_CONFIG } from '@/config/app';
 import { formatDate, formatTime } from '@/utils/dateFormatters';
 import PostFilters from '@/components/filters/PostFilters';
 import { useRouter } from 'next/navigation';
 import AnalyticsSkeleton from '@/components/analytics/AnalyticsSkeleton';
+import SyncButton from '@/components/buttons/SyncButton';
 
 // Importamos ApexCharts de forma dinámica para evitar errores de SSR
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -340,18 +340,11 @@ export default function AnalyticsDashboard() {
     <main className="p-8 bg-gray-50">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <Button
-            color="primary"
-            isLoading={isSyncing}
-            onPress={syncAllData}
-          >
-            {isSyncing ? 'Sincronizando...' : 'Actualizar Métricas'}
-          </Button>
-          {lastUpdate && (
-            <p className="text-sm text-gray-600 mt-1">
-              Última actualización: {formatDate(lastUpdate)} {formatTime(lastUpdate)}
-            </p>
-          )}
+          <SyncButton
+            isSyncing={isSyncing}
+            onSync={syncAllData}
+            lastUpdate={lastUpdate}
+          />
         </div>
         
         <PostFilters 
