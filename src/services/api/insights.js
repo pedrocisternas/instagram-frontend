@@ -30,3 +30,20 @@ export async function generateInsights(posts) {
     throw error;
   }
 }
+
+export async function getPostInsights(postId) {
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/api/insights/post/${postId}?username=${APP_CONFIG.USERNAME}`
+        );
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || 'Error getting post insights');
+        }
+        return response.json();
+    } catch (error) {
+        console.error('Service: Error:', error);
+        throw error;
+    }
+}

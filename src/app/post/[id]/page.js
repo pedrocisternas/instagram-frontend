@@ -16,6 +16,7 @@ import CategoryPopover from '@/components/categories/CategoryPopover';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
+import { getPostInsights } from '@/services/api/insights';
 
 export default function PostPage() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function PostPage() {
   const [error, setError] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [insights, setInsights] = useState(null);
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   
   // Estado unificado para todos los detalles del post
   const [details, setDetails] = useState({
@@ -182,6 +185,18 @@ export default function PostPage() {
       console.error('Error al transcribir:', error);
     } finally {
       setIsTranscribing(false);
+    }
+  };
+
+  const handleGenerateInsights = async () => {
+    try {
+      setIsLoadingInsights(true);
+      const insightsData = await getPostInsights(details.post.instagram_post_id);
+      setInsights(insightsData.analysis);
+    } catch (error) {
+      console.error('Error al generar insights:', error);
+    } finally {
+      setIsLoadingInsights(false);
     }
   };
 
@@ -347,10 +362,11 @@ export default function PostPage() {
               </div>
             </div>
 
-            {/* Columna 3 - Transcripción */}
-            <div className="flex flex-col h-full">
-              <Card className="flex-1 flex flex-col">
-                <CardBody className="flex-1 flex flex-col">
+            {/* Columna 3 - Transcripción e Insights */}
+            <div className="flex flex-col h-full gap-4">
+              {/* Card de Transcripción */}
+              <Card className="flex-1">
+                <CardBody className="flex flex-col h-[calc(50vh-120px)]">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Transcripción</h3>
                     {!transcript && (
@@ -416,6 +432,71 @@ export default function PostPage() {
                       </p>
                     </div>
                   )}
+                </CardBody>
+              </Card>
+
+              {/* Card de Insights */}
+              <Card className="flex-1">
+                <CardBody className="flex flex-col h-[calc(50vh-120px)]">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Insights</h3>
+                    {!insights && (
+                      <Button
+                        color="secondary"
+                        onClick={handleGenerateInsights}
+                        disabled={isLoadingInsights}
+                      >
+                        {isLoadingInsights ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Generando insights...
+                          </>
+                        ) : (
+                          'Generar Insights'
+                        )}
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto">
+                    {insights ? (
+                      <div className="space-y-4">
+                        {insights.insights.split('\n\n').map((insight, index) => (
+                          <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                            <p className="text-sm whitespace-pre-wrap">{insight}</p>
+                          </div>
+                        ))}
+                        <div className="mt-4">
+                          <h4 className="text-sm font-semibold mb-2">Métricas</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-gray-600">Views vs Categoría</p>
+                              <p className={`text-sm font-medium ${insights.metrics.performance.views.vsCategory > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {insights.metrics.performance.views.vsCategory > 0 ? '↑' : '↓'} {Math.abs(insights.metrics.performance.views.vsCategory).toFixed(1)}%
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Engagement vs Categoría</p>
+                              <p className={`text-sm font-medium ${insights.metrics.performance.engagement.vsCategory > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {insights.metrics.performance.engagement.vsCategory > 0 ? '↑' : '↓'} {Math.abs(insights.metrics.performance.engagement.vsCategory).toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        <p className="text-gray-600">
+                          {isLoadingInsights 
+                            ? "Analizando el contenido..." 
+                            : "No hay insights disponibles."}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </CardBody>
               </Card>
             </div>
