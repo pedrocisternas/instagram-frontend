@@ -36,7 +36,6 @@ export default function Home() {
   const router = useRouter();
   // Estados
   const [allPosts, setAllPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(() => {
     if (typeof window !== 'undefined') {

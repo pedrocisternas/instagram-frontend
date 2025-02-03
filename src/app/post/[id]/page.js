@@ -38,17 +38,6 @@ export default function PostPage() {
     transcript: null
   });
 
-  // Función para recargar los detalles del post
-  const reloadPostDetails = async () => {
-    try {
-      const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
-      setDetails(data);
-    } catch (err) {
-      console.error('Error reloading post details:', err);
-      setError(err.message);
-    }
-  };
-
   const handleAssignCategory = async (categoryId, postId) => {
     console.log('Assigning category:', { categoryId, postId });
     const previousDetails = { ...details };
@@ -102,7 +91,16 @@ export default function PostPage() {
         
         const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
         console.log('Received post details:', data);
-        console.log('Transcript in response:', data.transcript);
+        
+        // Imprimir las métricas comparativas
+        console.log('Métricas del post:', {
+            views: data.post.views,
+            engagement: data.post.likes + data.post.comments,
+            watchTime: data.post.avg_watch_time
+        });
+        
+        console.log('Promedios globales:', data.globalAverages);
+        console.log('Porcentajes relativos:', data.relativeMetrics);
         
         setDetails(data);
         
@@ -237,31 +235,75 @@ export default function PostPage() {
               <div className="space-y-4">
                 <Card>
                   <CardBody>
-                    <h3 className="text-lg font-semibold mb-4">Categorizaciones</h3>
-                    <div className="flex gap-4">
-                      <div className="w-28">
-                        <p className="text-sm text-gray-600 mb-2">Categoría</p>
-                        <div className="min-h-[28px] flex items-center">
-                          <CategoryPopover
-                            category={currentCategory}
-                            categories={categories}
-                            onAssignCategory={(categoryId) => handleAssignCategory(categoryId, post.id)}
-                            type="categoría"
-                          />
+                    <h3 className="text-lg font-semibold mb-4">Detalles</h3>
+                    <div className="space-y-4">
+                      {/* Categorizaciones */}
+                      <div className="flex gap-4 mb-4">
+                        <div className="w-28">
+                          <p className="text-sm text-gray-600 mb-2">Categoría</p>
+                          <div className="min-h-[28px] flex items-center">
+                            <CategoryPopover
+                              category={currentCategory}
+                              categories={categories}
+                              onAssignCategory={(categoryId) => handleAssignCategory(categoryId, post.id)}
+                              type="categoría"
+                            />
+                          </div>
+                        </div>
+                        <div className="w-48">
+                          <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
+                          <div className="min-h-[28px] flex items-center">
+                            <CategoryPopover
+                              category={currentSubcategory}
+                              categories={subcategories.filter(sub => sub.category_id === post?.category_id)}
+                              onAssignCategory={(categoryId) => handleAssignSubcategory(categoryId, post.id)}
+                              parentCategory={currentCategory}
+                              type="subcategoría"
+                            />
+                          </div>
                         </div>
                       </div>
-                      <div className="w-48">
-                        <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
-                        <div className="min-h-[28px] flex items-center">
-                          <CategoryPopover
-                            category={currentSubcategory}
-                            categories={subcategories.filter(sub => sub.category_id === post?.category_id)}
-                            onAssignCategory={(categoryId) => handleAssignSubcategory(categoryId, post.id)}
-                            parentCategory={currentCategory}
-                            type="subcategoría"
-                          />
+
+                      {/* Detalles existentes */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-600">Fecha de publicación</p>
+                          <p className="font-medium">
+                            {post?.published_at && `${formatDate(post.published_at)} ${formatTime(post.published_at)}`}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Última actualización</p>
+                          <p className="font-medium">
+                            {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
+                          </p>
                         </div>
                       </div>
+                      
+                      {/* Caption */}
+                      {post?.caption && (
+                        <div>
+                          <p className="text-sm text-gray-600">Caption</p>
+                          <div className="relative max-h-[40px] overflow-hidden">
+                            <p className="font-medium">{post.caption}</p>
+                            {post.caption.length > 40 && (
+                              <>
+                                <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-white to-transparent" />
+                                <Popover placement="top">
+                                  <PopoverTrigger>
+                                    <button className="absolute bottom-0 left-1/2 -translate-x-1/2 text-purple-600 text-sm flex items-center hover:text-purple-700">
+                                      Ver más <ChevronUpIcon className="w-4 h-4 ml-1" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[400px] p-4 bg-white shadow-lg rounded-lg">
+                                    <p className="font-medium whitespace-pre-wrap">{post.caption}</p>
+                                  </PopoverContent>
+                                </Popover>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardBody>
                 </Card>
@@ -292,7 +334,7 @@ export default function PostPage() {
 
                 <Card>
                   <CardBody>
-                    <h3 className="text-lg font-semibold mb-4">Video Performance</h3>
+                    <h3 className="text-lg font-semibold mb-4">Rendimiento</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-gray-600">Views</p>
@@ -310,52 +352,6 @@ export default function PostPage() {
                         <p className="text-sm text-gray-600">Total Watch Time</p>
                         <p className="text-xl font-semibold">{formatSeconds(post?.total_watch_time || 0)}</p>
                       </div>
-                    </div>
-                  </CardBody>
-                </Card>
-
-                <Card>
-                  <CardBody>
-                    <h3 className="text-lg font-semibold mb-4">Detalles</h3>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Fecha de publicación</p>
-                          <p className="font-medium">
-                            {post?.published_at && `${formatDate(post.published_at)} ${formatTime(post.published_at)}`}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Última actualización</p>
-                          <p className="font-medium">
-                            {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {post?.caption && (
-                        <div>
-                          <p className="text-sm text-gray-600">Caption</p>
-                          <div className="relative max-h-[40px] overflow-hidden">
-                            <p className="font-medium">{post.caption}</p>
-                            {post.caption.length > 40 && (
-                              <>
-                                <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-white to-transparent" />
-                                <Popover placement="top">
-                                  <PopoverTrigger>
-                                    <button className="absolute bottom-0 left-1/2 -translate-x-1/2 text-purple-600 text-sm flex items-center hover:text-purple-700">
-                                      Ver más <ChevronUpIcon className="w-4 h-4 ml-1" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-[400px] p-4 bg-white shadow-lg rounded-lg">
-                                    <p className="font-medium whitespace-pre-wrap">{post.caption}</p>
-                                  </PopoverContent>
-                                </Popover>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </CardBody>
                 </Card>
