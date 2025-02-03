@@ -17,6 +17,7 @@ import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
 import { getPostInsights } from '@/services/api/insights';
+import MetricWithDiff from '@/components/post/MetricWithDiff';
 
 export default function PostPage() {
   const router = useRouter();
@@ -237,6 +238,29 @@ export default function PostPage() {
                   <CardBody>
                     <h3 className="text-lg font-semibold mb-4">Detalles</h3>
                     <div className="space-y-4">
+                    {post?.caption && (
+                        <div>
+                          <p className="text-sm text-gray-600">Caption</p>
+                          <div className="relative max-h-[40px] overflow-hidden">
+                            <p className="font-medium">{post.caption}</p>
+                            {post.caption.length > 40 && (
+                              <>
+                                <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-white to-transparent" />
+                                <Popover placement="top">
+                                  <PopoverTrigger>
+                                    <button className="absolute bottom-0 left-1/2 -translate-x-1/2 text-purple-600 text-sm flex items-center hover:text-purple-700">
+                                      Ver más <ChevronUpIcon className="w-4 h-4 ml-1" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[400px] p-4 bg-white shadow-lg rounded-lg">
+                                    <p className="font-medium whitespace-pre-wrap">{post.caption}</p>
+                                  </PopoverContent>
+                                </Popover>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {/* Categorizaciones */}
                       <div className="flex gap-4 mb-4">
                         <div className="w-28">
@@ -278,32 +302,7 @@ export default function PostPage() {
                             {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
                           </p>
                         </div>
-                      </div>
-                      
-                      {/* Caption */}
-                      {post?.caption && (
-                        <div>
-                          <p className="text-sm text-gray-600">Caption</p>
-                          <div className="relative max-h-[40px] overflow-hidden">
-                            <p className="font-medium">{post.caption}</p>
-                            {post.caption.length > 40 && (
-                              <>
-                                <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-white to-transparent" />
-                                <Popover placement="top">
-                                  <PopoverTrigger>
-                                    <button className="absolute bottom-0 left-1/2 -translate-x-1/2 text-purple-600 text-sm flex items-center hover:text-purple-700">
-                                      Ver más <ChevronUpIcon className="w-4 h-4 ml-1" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-[400px] p-4 bg-white shadow-lg rounded-lg">
-                                    <p className="font-medium whitespace-pre-wrap">{post.caption}</p>
-                                  </PopoverContent>
-                                </Popover>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                      </div>                      
                     </div>
                   </CardBody>
                 </Card>
@@ -311,48 +310,54 @@ export default function PostPage() {
                 <Card>
                   <CardBody>
                     <h3 className="text-lg font-semibold mb-4">Engagement</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">Likes</p>
-                        <p className="text-xl font-semibold">{formatNumber(post?.likes || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Comments</p>
-                        <p className="text-xl font-semibold">{formatNumber(post?.comments || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Saves</p>
-                        <p className="text-xl font-semibold">{formatNumber(post?.saves || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Shares</p>
-                        <p className="text-xl font-semibold">{formatNumber(post?.shares || 0)}</p>
-                      </div>
-                    </div>
+                    <MetricWithDiff 
+                      label="Likes" 
+                      value={details.post.likes} 
+                      diff={details.relativeMetrics.likes} 
+                    />
+                    <MetricWithDiff 
+                      label="Comments" 
+                      value={details.post.comments} 
+                      diff={details.relativeMetrics.comments}
+                    />
+                    <MetricWithDiff 
+                      label="Saves" 
+                      value={details.post.saves} 
+                      diff={details.relativeMetrics.saves}
+                    />
+                    <MetricWithDiff 
+                      label="Shares" 
+                      value={details.post.shares} 
+                      diff={details.relativeMetrics.shares}
+                    />
                   </CardBody>
                 </Card>
 
                 <Card>
                   <CardBody>
                     <h3 className="text-lg font-semibold mb-4">Rendimiento</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">Views</p>
-                        <p className="text-xl font-semibold">{formatNumber(post?.views || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Reach</p>
-                        <p className="text-xl font-semibold">{formatNumber(post?.reach || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Avg Watch Time</p>
-                        <p className="text-xl font-semibold">{formatSeconds(post?.avg_watch_time || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Total Watch Time</p>
-                        <p className="text-xl font-semibold">{formatSeconds(post?.total_watch_time || 0)}</p>
-                      </div>
-                    </div>
+                    <MetricWithDiff 
+                      label="Views" 
+                      value={details.post.views} 
+                      diff={details.relativeMetrics.views}
+                    />
+                    <MetricWithDiff 
+                      label="Reach" 
+                      value={details.post.reach}
+                      diff={details.relativeMetrics.reach}
+                    />
+                    <MetricWithDiff 
+                      label="Avg Watch Time" 
+                      value={details.post.avg_watch_time} 
+                      diff={details.relativeMetrics.watchTime}
+                      formatter={(val) => `${val?.toFixed(2)}s`}
+                    />
+                    <MetricWithDiff 
+                      label="Total Watch Time" 
+                      value={details.post.total_watch_time}
+                      diff={details.relativeMetrics.totalWatchTime}
+                      formatter={(val) => `${(val / 1000).toFixed(2)}s`}
+                    />
                   </CardBody>
                 </Card>
               </div>
