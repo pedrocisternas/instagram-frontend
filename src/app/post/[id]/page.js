@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent } from "@heroui/react";
+import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
 import { getCategoryStyle } from '@/utils/categoryStyles';
@@ -38,6 +38,9 @@ export default function PostPage() {
     subcategories: [],
     transcript: null
   });
+
+  // Agregar estado para el tipo de comparación
+  const [comparisonType, setComparisonType] = useState('category');
 
   const handleAssignCategory = async (categoryId, postId) => {
     console.log('Assigning category:', { categoryId, postId });
@@ -309,55 +312,119 @@ export default function PostPage() {
 
                 <Card>
                   <CardBody>
-                    <h3 className="text-lg font-semibold mb-4">Engagement</h3>
-                    <MetricWithDiff 
-                      label="Likes" 
-                      value={details.post.likes} 
-                      diff={details.relativeMetrics.likes} 
-                    />
-                    <MetricWithDiff 
-                      label="Comments" 
-                      value={details.post.comments} 
-                      diff={details.relativeMetrics.comments}
-                    />
-                    <MetricWithDiff 
-                      label="Saves" 
-                      value={details.post.saves} 
-                      diff={details.relativeMetrics.saves}
-                    />
-                    <MetricWithDiff 
-                      label="Shares" 
-                      value={details.post.shares} 
-                      diff={details.relativeMetrics.shares}
-                    />
+                    <div className="flex flex-col space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">Engagement</h3>
+                        <Tabs 
+                          selectedKey={comparisonType} 
+                          onSelectionChange={setComparisonType}
+                          size="sm"
+                          variant="solid"
+                          color="secondary"
+                          className="max-w-[200px]"
+                        >
+                          <Tab 
+                            key="category" 
+                            title="Por categoría"
+                            isDisabled={!details.post.category_id} 
+                          />
+                          <Tab key="global" title="Global" />
+                        </Tabs>
+                      </div>
+                      
+                      <MetricWithDiff 
+                        label="Likes" 
+                        value={details.post.likes} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.likes 
+                          : details.categoryRelativeMetrics?.likes
+                        } 
+                      />
+                      <MetricWithDiff 
+                        label="Comments" 
+                        value={details.post.comments} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.comments 
+                          : details.categoryRelativeMetrics?.comments
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Saves" 
+                        value={details.post.saves} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.saves 
+                          : details.categoryRelativeMetrics?.saves
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Shares" 
+                        value={details.post.shares} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.shares 
+                          : details.categoryRelativeMetrics?.shares
+                        }
+                      />
+                    </div>
                   </CardBody>
                 </Card>
 
                 <Card>
                   <CardBody>
-                    <h3 className="text-lg font-semibold mb-4">Rendimiento</h3>
-                    <MetricWithDiff 
-                      label="Views" 
-                      value={details.post.views} 
-                      diff={details.relativeMetrics.views}
-                    />
-                    <MetricWithDiff 
-                      label="Reach" 
-                      value={details.post.reach}
-                      diff={details.relativeMetrics.reach}
-                    />
-                    <MetricWithDiff 
-                      label="Avg Watch Time" 
-                      value={details.post.avg_watch_time} 
-                      diff={details.relativeMetrics.watchTime}
-                      formatter={(val) => `${val?.toFixed(2)}s`}
-                    />
-                    <MetricWithDiff 
-                      label="Total Watch Time" 
-                      value={details.post.total_watch_time}
-                      diff={details.relativeMetrics.totalWatchTime}
-                      formatter={(val) => `${(val / 1000).toFixed(2)}s`}
-                    />
+                    <div className="flex flex-col space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold">Rendimiento</h3>
+                        <Tabs 
+                          selectedKey={comparisonType} 
+                          onSelectionChange={setComparisonType}
+                          size="sm"
+                          variant="solid"
+                          color="secondary"
+                          className="max-w-[200px]"
+                        >
+                          <Tab 
+                            key="category" 
+                            title="Por categoría"
+                            isDisabled={!details.post.category_id} 
+                          />
+                          <Tab key="global" title="Global" />
+                        </Tabs>
+                      </div>
+
+                      <MetricWithDiff 
+                        label="Views" 
+                        value={details.post.views} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.views 
+                          : details.categoryRelativeMetrics?.views
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Reach" 
+                        value={details.post.reach}
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.reach 
+                          : details.categoryRelativeMetrics?.reach
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Avg Watch Time" 
+                        value={details.post.avg_watch_time} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.watchTime 
+                          : details.categoryRelativeMetrics?.watchTime
+                        }
+                        formatter={(val) => `${val?.toFixed(2)}s`}
+                      />
+                      <MetricWithDiff 
+                        label="Total Watch Time" 
+                        value={details.post.total_watch_time}
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.totalWatchTime 
+                          : details.categoryRelativeMetrics?.totalWatchTime
+                        }
+                        formatter={(val) => `${(val / 1000).toFixed(2)}s`}
+                      />
+                    </div>
                   </CardBody>
                 </Card>
               </div>
