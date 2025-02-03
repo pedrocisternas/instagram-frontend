@@ -43,7 +43,6 @@ export default function PostPage() {
   const [comparisonType, setComparisonType] = useState('category');
 
   const handleAssignCategory = async (categoryId, postId) => {
-    console.log('Assigning category:', { categoryId, postId });
     const previousDetails = { ...details };
     
     // Actualización optimista en el frontend
@@ -68,7 +67,6 @@ export default function PostPage() {
   };
 
   const handleAssignSubcategory = async (subcategoryId, postId) => {
-    console.log('Assigning subcategory:', { subcategoryId, postId });
     const previousDetails = { ...details };
     
     // Actualización optimista en el frontend
@@ -91,20 +89,8 @@ export default function PostPage() {
     const loadPostDetails = async () => {
       try {
         setLoading(true);
-        console.log('Fetching post details for ID:', id);
         
         const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
-        console.log('Received post details:', data);
-        
-        // Imprimir las métricas comparativas
-        console.log('Métricas del post:', {
-            views: data.post.views,
-            engagement: data.post.likes + data.post.comments,
-            watchTime: data.post.avg_watch_time
-        });
-        
-        console.log('Promedios globales:', data.globalAverages);
-        console.log('Porcentajes relativos:', data.relativeMetrics);
         
         setDetails(data);
         
@@ -120,9 +106,6 @@ export default function PostPage() {
       loadPostDetails();
     }
   }, [id]);
-
-  const formatNumber = (num) => new Intl.NumberFormat('es-CL').format(num);
-  const formatSeconds = (seconds) => `${seconds.toFixed(2)}s`;
 
   if (loading) return (
     <main className="p-4">
@@ -171,8 +154,6 @@ export default function PostPage() {
 
   const { post, currentCategory, currentSubcategory, categories, subcategories, transcript } = details;
   
-  console.log('Transcript after destructuring:', transcript);
-
   const handleTranscribe = async () => {
     try {
       setIsTranscribing(true);
@@ -531,38 +512,24 @@ export default function PostPage() {
 
                   <div className="flex-1 overflow-y-auto">
                     {insights ? (
-                      <div className="space-y-4">
-                        {insights.insights.split('\n\n').map((insight, index) => (
-                          <div key={index} className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-sm whitespace-pre-wrap">{insight}</p>
-                          </div>
-                        ))}
-                        <div className="mt-4">
-                          <h4 className="text-sm font-semibold mb-2">Métricas</h4>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-xs text-gray-600">Views vs Categoría</p>
-                              <p className={`text-sm font-medium ${insights.metrics.performance.views.vsCategory > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {insights.metrics.performance.views.vsCategory > 0 ? '↑' : '↓'} {Math.abs(insights.metrics.performance.views.vsCategory).toFixed(1)}%
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">Engagement vs Categoría</p>
-                              <p className={`text-sm font-medium ${insights.metrics.performance.engagement.vsCategory > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {insights.metrics.performance.engagement.vsCategory > 0 ? '↑' : '↓'} {Math.abs(insights.metrics.performance.engagement.vsCategory).toFixed(1)}%
-                              </p>
-                            </div>
-                          </div>
+                        <div className="flex-1 overflow-y-auto">
+                            <div 
+                                className="text-sm text-gray-600 space-y-4"
+                                dangerouslySetInnerHTML={{
+                                    __html: insights
+                                        .split('\n\n').map(paragraph => `<p>${paragraph}</p>`)
+                                        .join('')
+                                }}
+                            />
                         </div>
-                      </div>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <p className="text-gray-600">
-                          {isLoadingInsights 
-                            ? "Analizando el contenido..." 
-                            : "No hay insights disponibles."}
-                        </p>
-                      </div>
+                        <div className="flex-1 flex items-center justify-center">
+                            <p className="text-gray-600">
+                                {isLoadingInsights 
+                                    ? "Analizando el contenido..." 
+                                    : "No hay insights disponibles."}
+                            </p>
+                        </div>
                     )}
                   </div>
                 </CardBody>

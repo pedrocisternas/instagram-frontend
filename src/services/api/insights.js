@@ -34,7 +34,7 @@ export async function generateInsights(posts) {
 export async function getPostInsights(postId) {
     try {
         const response = await fetch(
-            `${API_BASE_URL}/api/insights/post/${postId}?username=${APP_CONFIG.USERNAME}`
+            `${API_BASE_URL}/api/insights/generate/post/${postId}?username=${APP_CONFIG.USERNAME}`
         );
         
         if (!response.ok) {
