@@ -281,12 +281,12 @@ export default function Home() {
             onSync={syncAllPages}
             lastUpdate={lastUpdate}
           />
-          <Button 
+          {/* <Button 
             color="secondary"
             onPress={handleGenerateInsights}
           >
             Generar Insights
-          </Button>
+          </Button> */}
         </div>
         
         <PostFilters 
