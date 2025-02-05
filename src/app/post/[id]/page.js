@@ -16,7 +16,7 @@ import CategoryPopover from '@/components/categories/CategoryPopover';
 import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
-import { getPostInsights } from '@/services/api/insights';
+import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
 
 export default function PostPage() {
@@ -28,6 +28,11 @@ export default function PostPage() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [insights, setInsights] = useState(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
+  const [needsInsightsUpdate, setNeedsInsightsUpdate] = useState(false);
+  const [activeTab, setActiveTab] = useState("insights");
+
+
   
   // Estado unificado para todos los detalles del post
   const [details, setDetails] = useState({
@@ -85,26 +90,47 @@ export default function PostPage() {
     }
   };
 
+  const handleGenerateInsights = async () => {
+    try {
+      setIsLoadingInsights(true);
+      const insightsData = await getPostInsights(details.post.instagram_post_id);
+      setInsights(insightsData.analysis);
+      setInsightsGeneratedAt(insightsData.generated_at);
+      setNeedsInsightsUpdate(false);
+    } catch (error) {
+      console.error('Error generando insights:', error);
+    } finally {
+      setIsLoadingInsights(false);
+    }
+  };
+
   useEffect(() => {
-    const loadPostDetails = async () => {
+    const loadData = async () => {
+      if (!id) return;
+
       try {
         setLoading(true);
-        
-        const data = await fetchPostDetails(id, APP_CONFIG.USERNAME);
-        
-        setDetails(data);
-        
+        const postData = await fetchPostDetails(id, APP_CONFIG.USERNAME);
+        setDetails(postData);
+
+        if (postData?.post?.instagram_post_id) {
+          const insightsData = await checkPostInsights(postData.post.instagram_post_id);
+          if (insightsData.analysis) {
+            setInsights(insightsData.analysis);
+            setInsightsGeneratedAt(insightsData.generated_at);
+            setNeedsInsightsUpdate(insightsData.needs_update);
+          } else {
+            setNeedsInsightsUpdate(true);
+          }
+        }
       } catch (err) {
-        console.error('Error loading post details:', err);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
-      loadPostDetails();
-    }
+    loadData();
   }, [id]);
 
   if (loading) return (
@@ -168,18 +194,6 @@ export default function PostPage() {
       console.error('Error al transcribir:', error);
     } finally {
       setIsTranscribing(false);
-    }
-  };
-
-  const handleGenerateInsights = async () => {
-    try {
-      setIsLoadingInsights(true);
-      const insightsData = await getPostInsights(details.post.instagram_post_id);
-      setInsights(insightsData.analysis);
-    } catch (error) {
-      console.error('Error al generar insights:', error);
-    } finally {
-      setIsLoadingInsights(false);
     }
   };
 
@@ -413,125 +427,136 @@ export default function PostPage() {
 
             {/* Columna 3 - Transcripción e Insights */}
             <div className="flex flex-col h-full gap-4">
-              {/* Card de Transcripción */}
               <Card className="flex-1">
-                <CardBody className="flex flex-col h-[calc(50vh-120px)]">
+                <CardBody className="flex flex-col h-[calc(100vh-280px)]">
                   <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Transcripción</h3>
-                    {!transcript && (
-                      <Button
-                        color="secondary"
-                        onClick={handleTranscribe}
-                        disabled={isTranscribing}
-                      >
-                        {isTranscribing ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Transcribiendo...
-                          </>
-                        ) : (
-                          'Transcribir Video'
-                        )}
-                      </Button>
-                    )}
-                    {transcript && (
-                      <button
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        className="text-gray-500 hover:text-gray-700"
-                      >
-                        {isExpanded ? (
-                          <ChevronUpIcon className="h-5 w-5" />
-                        ) : (
-                          <ChevronDownIcon className="h-5 w-5" />
-                        )}
-                      </button>
-                    )}
+                    <Tabs 
+                      selectedKey={activeTab} 
+                      onSelectionChange={setActiveTab}
+                      size="sm"
+                      variant="solid"
+                      color="secondary"
+                      className="max-w-[300px]"
+                    >
+                      <Tab key="insights" title="Insights" />
+                      <Tab key="transcript" title="Transcripción" />
+                    </Tabs>
                   </div>
 
-                  {transcript ? (
+                  {activeTab === "insights" ? (
                     <div className="flex-1 overflow-y-auto">
-                      <div className={`transition-all duration-300 ${isExpanded ? '' : 'max-h-[calc(100vh-400px)]'}`}>
-                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{transcript.full_text}</p>
-                        {isExpanded && transcript.segments && (
-                          <>
-                            <div className="mt-6 mb-2">
-                              <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
-                            </div>
-                            <div className="space-y-2">
-                              {transcript.segments.map((segment, index) => (
-                                <div key={index} className="text-xs text-gray-500">
-                                  <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
-                                  <span className="ml-2">{segment.text}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </>
+                      <div className="flex justify-between items-center mb-4">
+                        {insightsGeneratedAt && (
+                          <p className="text-xs text-gray-500">
+                            Generado el {formatDate(insightsGeneratedAt)} {formatTime(insightsGeneratedAt)}
+                          </p>
+                        )}
+                        {needsInsightsUpdate && (
+                          <Button
+                            color="secondary"
+                            onClick={handleGenerateInsights}
+                            disabled={isLoadingInsights}
+                          >
+                            {isLoadingInsights ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Actualizando insights...
+                              </>
+                            ) : (
+                              'Actualizar Insights'
+                            )}
+                          </Button>
                         )}
                       </div>
+
+                      {insights ? (
+                        <div 
+                          className="text-sm text-gray-600 space-y-4"
+                          dangerouslySetInnerHTML={{
+                            __html: insights
+                              .split('\n\n').map(paragraph => `<p>${paragraph}</p>`)
+                              .join('')
+                          }}
+                        />
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center">
+                          <p className="text-gray-600">
+                            {isLoadingInsights 
+                              ? "Analizando el contenido..." 
+                              : "No hay insights disponibles."}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
-                    <div className="flex-1 flex items-center justify-center">
-                      <p className="text-gray-600">
-                        {isTranscribing 
-                          ? "Generando transcripción..." 
-                          : "No hay transcripción disponible."}
-                      </p>
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="flex justify-between items-center mb-4">
+                        {!transcript && (
+                          <Button
+                            color="secondary"
+                            onClick={handleTranscribe}
+                            disabled={isTranscribing}
+                          >
+                            {isTranscribing ? (
+                              <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Transcribiendo...
+                              </>
+                            ) : (
+                              'Transcribir Video'
+                            )}
+                          </Button>
+                        )}
+                        {transcript && (
+                          <button
+                            onClick={() => setIsExpanded(!isExpanded)}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            {isExpanded ? (
+                              <ChevronUpIcon className="h-5 w-5" />
+                            ) : (
+                              <ChevronDownIcon className="h-5 w-5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {transcript ? (
+                        <div className={`transition-all duration-300 ${isExpanded ? '' : 'max-h-[calc(100vh-400px)]'}`}>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{transcript.full_text}</p>
+                          {isExpanded && transcript.segments && (
+                            <>
+                              <div className="mt-6 mb-2">
+                                <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {transcript.segments.map((segment, index) => (
+                                  <div key={index} className="text-xs text-gray-500">
+                                    <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
+                                    <span className="ml-2">{segment.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center">
+                          <p className="text-gray-600">
+                            {isTranscribing 
+                              ? "Generando transcripción..." 
+                              : "No hay transcripción disponible."}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
-                </CardBody>
-              </Card>
-
-              {/* Card de Insights */}
-              <Card className="flex-1">
-                <CardBody className="flex flex-col h-[calc(50vh-120px)]">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Insights</h3>
-                    {!insights && (
-                      <Button
-                        color="secondary"
-                        onClick={handleGenerateInsights}
-                        disabled={isLoadingInsights}
-                      >
-                        {isLoadingInsights ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Generando insights...
-                          </>
-                        ) : (
-                          'Generar Insights'
-                        )}
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto">
-                    {insights ? (
-                        <div className="flex-1 overflow-y-auto">
-                            <div 
-                                className="text-sm text-gray-600 space-y-4"
-                                dangerouslySetInnerHTML={{
-                                    __html: insights
-                                        .split('\n\n').map(paragraph => `<p>${paragraph}</p>`)
-                                        .join('')
-                                }}
-                            />
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center">
-                            <p className="text-gray-600">
-                                {isLoadingInsights 
-                                    ? "Analizando el contenido..." 
-                                    : "No hay insights disponibles."}
-                            </p>
-                        </div>
-                    )}
-                  </div>
                 </CardBody>
               </Card>
             </div>

@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+import { APP_CONFIG } from '@/config/app';
+
+const API_BASE_URL = `${APP_CONFIG.API_URL}/api`;
 
 // Categorías
 export async function fetchCategories(username) {

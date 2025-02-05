@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3001';
+import { APP_CONFIG } from '@/config/app';
+
+const API_BASE_URL = APP_CONFIG.API_URL;
 
 export async function generateTranscript(accountId, postId) {
   if (!accountId) throw new Error('Account ID is required');
