@@ -55,7 +55,6 @@ export async function getPostInsights(postId) {
 
 export async function checkPostInsights(postId) {
     try {
-        console.log('Service - Check Insights - Iniciando request para:', postId);
         const response = await fetch(
             `${API_BASE_URL}/api/insights/check/${postId}?username=${APP_CONFIG.USERNAME}`
         );

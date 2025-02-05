@@ -35,7 +35,7 @@ export async function fetchDashboardData(username) {
   return response.json();
 }
 
-// Nueva función para obtener los detalles de un post
+// Función para obtener los detalles de un post
 export async function fetchPostDetails(postId, username) {
   if (!postId) throw new Error('Post ID is required');
   if (!username) throw new Error('Username is required');

@@ -93,7 +93,7 @@ export default function PostPage() {
   const handleGenerateInsights = async () => {
     try {
       setIsLoadingInsights(true);
-      const insightsData = await getPostInsights(details.post.instagram_post_id);
+      const insightsData = await getPostInsights(details.post.id);
       setInsights(insightsData.analysis);
       setInsightsGeneratedAt(insightsData.generated_at);
       setNeedsInsightsUpdate(false);
@@ -113,8 +113,8 @@ export default function PostPage() {
         const postData = await fetchPostDetails(id, APP_CONFIG.USERNAME);
         setDetails(postData);
 
-        if (postData?.post?.instagram_post_id) {
-          const insightsData = await checkPostInsights(postData.post.instagram_post_id);
+        if (postData?.post?.id) {
+          const insightsData = await checkPostInsights(postData.post.id);
           if (insightsData.analysis) {
             setInsights(insightsData.analysis);
             setInsightsGeneratedAt(insightsData.generated_at);

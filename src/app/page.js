@@ -359,7 +359,7 @@ export default function Home() {
               <TableRow 
                 key={post.id} 
                 className="cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => router.push(`/post/${post.instagram_post_id}`)}
+                onClick={() => router.push(`/post/${post.id}`)}
               >
                 <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
                 <TableCell>

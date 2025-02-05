@@ -144,7 +144,7 @@ export default function AnalyticsDashboard() {
       categoryGroups[categoryName].data.push({
         x: new Date(post.published_at).getTime(),
         y: post.views || 0,
-        postId: post.instagram_post_id,
+        postId: post.id,
         views: post.views || 0,
         caption: post.caption || '',
         published_at: post.published_at
