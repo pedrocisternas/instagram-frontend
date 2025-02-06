@@ -684,7 +684,7 @@ export default function PostPage() {
 function LoadingMessage({ activeTab }) {
   const messages = activeTab === "transcript" 
     ? ["Analizando video...", "Extrayendo audio...", "Transcribiendo video..."]
-    : ["Analizando métricas...", "Generando insights...", "Procesando contenido..."];
+    : ["Analizando métricas...", "Generando insights...", "Organizando insights...", "Procesando contenido..."];
 
   const [messageIndex, setMessageIndex] = useState(0);
 
