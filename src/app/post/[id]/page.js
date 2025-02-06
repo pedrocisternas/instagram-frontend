@@ -5,20 +5,16 @@ import { useParams } from 'next/navigation';
 import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
-import { getCategoryStyle } from '@/utils/categoryStyles';
 import { 
   assignCategoryToPost,
   assignSubcategoryToPost,
-  fetchCategories,
-  fetchSubcategories
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import { ChevronUpIcon, ChevronDownIcon, InformationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
-import { BrainIcon } from "@heroicons/react/24/outline";
 
 export default function PostPage() {
   const router = useRouter();
@@ -441,7 +437,7 @@ export default function PostPage() {
                         <Tab key="transcript" title="Transcripción" />
                       </Tabs>
                     </div>
-                    {activeTab === "insights" && needsInsightsUpdate && (
+                    {activeTab === "insights" && needsInsightsUpdate && insights && (
                       <Button
                         color="secondary"
                         size="sm"
@@ -461,9 +457,8 @@ export default function PostPage() {
 
                   <div className="relative">
                     {/* Estado de Carga */}
-                    {isLoadingInsights && (
+                    {(isLoadingInsights || isTranscribing) && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-                        {/* Spinner Central con Progreso */}
                         <div className="relative">
                           <div className="w-20 h-20">
                             <CircularProgress
@@ -474,10 +469,8 @@ export default function PostPage() {
                             />
                           </div>
                         </div>
-                        
-                        {/* Mensajes de Carga Rotativos */}
                         <div className="mt-6 text-center">
-                          <LoadingMessage />
+                          <LoadingMessage activeTab={activeTab} />
                         </div>
                       </div>
                     )}
@@ -618,28 +611,6 @@ export default function PostPage() {
                     {/* Transcript Tab Content */}
                     {activeTab === "transcript" && (
                       <div className="flex-1 overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4">
-                          {!details.transcript && (
-                            <Button
-                              color="secondary"
-                              onClick={handleTranscribe}
-                              disabled={isTranscribing}
-                            >
-                              {isTranscribing ? (
-                                <>
-                                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  Transcribiendo...
-                                </>
-                              ) : (
-                                'Transcribir Video'
-                              )}
-                            </Button>
-                          )}
-                        </div>
-
                         {details.transcript ? (
                           <div className="space-y-4">
                             {/* Texto completo siempre visible */}
@@ -663,12 +634,37 @@ export default function PostPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="flex-1 flex items-center justify-center">
-                            <p className="text-gray-600">
-                              {isTranscribing 
-                                ? "Generando transcripción..." 
-                                : "No hay transcripción disponible."}
-                            </p>
+                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)] relative">
+                            <div className="w-20 h-20 text-secondary mb-4">
+                              {isTranscribing ? (
+                                <CircularProgress
+                                  size="lg"
+                                  color="secondary"
+                                  isIndeterminate
+                                  className="w-full h-full"
+                                />
+                              ) : (
+                                <MagnifyingGlassIcon className="w-full h-full" />
+                              )}
+                            </div>
+                            <div className="mb-4">
+                              {isTranscribing ? (
+                                <TranscriptLoadingMessage />
+                              ) : (
+                                <p className="text-gray-600 text-center">
+                                  No hay transcripción disponible.
+                                </p>
+                              )}
+                            </div>
+                            {!isTranscribing && (
+                              <Button
+                                color="secondary"
+                                onClick={handleTranscribe}
+                                size="lg"
+                              >
+                                Transcribir Video
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -683,14 +679,35 @@ export default function PostPage() {
     </main>
   );
 }
-// Componente para mensajes de carga rotativos
-function LoadingMessage() {
+
+// Modificar el componente LoadingMessage para recibir activeTab como prop
+function LoadingMessage({ activeTab }) {
+  const messages = activeTab === "transcript" 
+    ? ["Analizando video...", "Extrayendo audio...", "Transcribiendo video..."]
+    : ["Analizando métricas...", "Generando insights...", "Procesando contenido..."];
+
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [messages.length]);
+
+  return (
+    <p className="text-secondary-600 text-center animate-fade-in">
+      {messages[messageIndex]}
+    </p>
+  );
+}
+
+// Primero agregamos el componente (junto a LoadingMessage existente)
+function TranscriptLoadingMessage() {
   const messages = [
-    "Analizando métricas de engagement...",
-    "Procesando datos de alcance...",
-    "Comparando con promedios de categoría...",
-    "Identificando tendencias...",
-    "Generando insights..."
+    "Extrayendo audio...",
+    "Transcribiendo video..."
   ];
 
   const [messageIndex, setMessageIndex] = useState(0);
@@ -698,16 +715,14 @@ function LoadingMessage() {
   useEffect(() => {
     const interval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 2500);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="h-6">
-      <p className="text-secondary-600 animate-fade-in">
-        {messages[messageIndex]}
-      </p>
-    </div>
+    <p className="text-secondary-600 text-center animate-fade-in">
+      {messages[messageIndex]}
+    </p>
   );
 }
