@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab } from "@heroui/react";
+import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
 import { getCategoryStyle } from '@/utils/categoryStyles';
@@ -13,11 +13,12 @@ import {
   fetchSubcategories
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import { ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, ChevronDownIcon, InformationCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
+import { BrainIcon } from "@heroicons/react/24/outline";
 
 export default function PostPage() {
   const router = useRouter();
@@ -430,133 +431,269 @@ export default function PostPage() {
               <Card className="flex-1">
                 <CardBody className="flex flex-col h-[calc(100vh-280px)]">
                   <div className="flex justify-between items-center mb-4">
-                    <Tabs 
-                      selectedKey={activeTab} 
-                      onSelectionChange={setActiveTab}
-                      size="sm"
-                      variant="solid"
-                      color="secondary"
-                      className="max-w-[300px]"
-                    >
-                      <Tab key="insights" title="Insights" />
-                      <Tab key="transcript" title="Transcripción" />
-                    </Tabs>
+                    <div className="flex items-center gap-2">
+                      <Tabs 
+                        selectedKey={activeTab} 
+                        onSelectionChange={setActiveTab}
+                        size="sm"
+                        variant="solid"
+                        color="secondary"
+                        className="max-w-[300px]"
+                      >
+                        <Tab key="insights" title="Insights" />
+                        <Tab key="transcript" title="Transcripción" />
+                      </Tabs>
+                      {insightsGeneratedAt && (
+                        <Tooltip 
+                          content={`Última actualización: ${formatDate(insightsGeneratedAt)} ${formatTime(insightsGeneratedAt)}`}
+                        >
+                          <Button
+                            isIconOnly
+                            variant="light"
+                            size="sm"
+                          >
+                            <InformationCircleIcon className="h-4 w-4 text-gray-500" />
+                          </Button>
+                        </Tooltip>
+                      )}
+                    </div>
+                    {needsInsightsUpdate && (
+                      <Button
+                        color="secondary"
+                        size="sm"
+                        onClick={handleGenerateInsights}
+                        disabled={isLoadingInsights}
+                        startContent={isLoadingInsights && (
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        )}
+                      >
+                        Actualizar
+                      </Button>
+                    )}
                   </div>
 
-                  {activeTab === "insights" ? (
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="flex justify-between items-center mb-4">
-                        {insightsGeneratedAt && (
-                          <p className="text-xs text-gray-500">
-                            Generado el {formatDate(insightsGeneratedAt)} {formatTime(insightsGeneratedAt)}
-                          </p>
-                        )}
-                        {needsInsightsUpdate && (
-                          <Button
-                            color="secondary"
-                            onClick={handleGenerateInsights}
-                            disabled={isLoadingInsights}
-                          >
-                            {isLoadingInsights ? (
-                              <>
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Actualizando insights...
-                              </>
-                            ) : (
-                              'Actualizar Insights'
-                            )}
-                          </Button>
-                        )}
-                      </div>
-
-                      {insights ? (
-                        <div 
-                          className="text-sm text-gray-600 space-y-4"
-                          dangerouslySetInnerHTML={{
-                            __html: insights
-                              .split('\n\n').map(paragraph => `<p>${paragraph}</p>`)
-                              .join('')
-                          }}
-                        />
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center">
-                          <p className="text-gray-600">
-                            {isLoadingInsights 
-                              ? "Analizando el contenido..." 
-                              : "No hay insights disponibles."}
-                          </p>
+                  <div className="relative">
+                    {/* Estado de Carga */}
+                    {isLoadingInsights && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+                        {/* Spinner Central con Progreso */}
+                        <div className="relative">
+                          <div className="w-20 h-20">
+                            <CircularProgress
+                              size="lg"
+                              color="secondary"
+                              isIndeterminate
+                              className="absolute inset-0"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <BrainIcon className="w-8 h-8 text-secondary animate-pulse" />
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="flex justify-between items-center mb-4">
-                        {!transcript && (
-                          <Button
-                            color="secondary"
-                            onClick={handleTranscribe}
-                            disabled={isTranscribing}
-                          >
-                            {isTranscribing ? (
-                              <>
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Transcribiendo...
-                              </>
-                            ) : (
-                              'Transcribir Video'
-                            )}
-                          </Button>
-                        )}
-                        {transcript && (
-                          <button
-                            onClick={() => setIsExpanded(!isExpanded)}
-                            className="text-gray-500 hover:text-gray-700"
-                          >
-                            {isExpanded ? (
-                              <ChevronUpIcon className="h-5 w-5" />
-                            ) : (
-                              <ChevronDownIcon className="h-5 w-5" />
-                            )}
-                          </button>
-                        )}
+                        
+                        {/* Mensajes de Carga Rotativos */}
+                        <div className="mt-6 text-center">
+                          <LoadingMessage />
+                        </div>
                       </div>
+                    )}
 
-                      {transcript ? (
-                        <div className={`transition-all duration-300 ${isExpanded ? '' : 'max-h-[calc(100vh-400px)]'}`}>
-                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{transcript.full_text}</p>
-                          {isExpanded && transcript.segments && (
-                            <>
-                              <div className="mt-6 mb-2">
-                                <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
-                              </div>
+                    {/* Skeleton Loading */}
+                    {isLoadingInsights && (
+                      <div className="space-y-6 opacity-50">
+                        {/* Skeleton Summary Card */}
+                        <Card>
+                          <CardBody>
+                            <div className="flex items-center gap-4">
+                              <Skeleton className="w-16 h-16 rounded-full" />
                               <div className="space-y-2">
-                                {transcript.segments.map((segment, index) => (
-                                  <div key={index} className="text-xs text-gray-500">
-                                    <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
-                                    <span className="ml-2">{segment.text}</span>
-                                  </div>
-                                ))}
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-3 w-48" />
                               </div>
-                            </>
+                            </div>
+                          </CardBody>
+                        </Card>
+
+                        {/* Skeleton Metrics */}
+                        <Card>
+                          <CardBody>
+                            <Skeleton className="h-5 w-40 mb-4" />
+                            <div className="space-y-4">
+                              {[1, 2, 3].map((i) => (
+                                <div key={i} className="flex items-center gap-3">
+                                  <Skeleton className="w-6 h-6 rounded-full" />
+                                  <div className="space-y-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-3 w-48" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardBody>
+                        </Card>
+
+                        {/* Skeleton Content Analysis */}
+                        <Card>
+                          <CardBody>
+                            <Skeleton className="h-5 w-40 mb-4" />
+                            <div className="space-y-2">
+                              <Skeleton className="h-3 w-full" />
+                              <Skeleton className="h-3 w-5/6" />
+                              <Skeleton className="h-3 w-4/6" />
+                            </div>
+                          </CardBody>
+                        </Card>
+                      </div>
+                    )}
+
+                    {/* Contenido Real */}
+                    {!isLoadingInsights && activeTab === "insights" && (insights ? (
+                      <div className="space-y-6 transition-all duration-300">
+                        {/* Summary Section */}
+                        <Card>
+                          <CardBody>
+                            <div className="flex items-center gap-4">
+                              <div className={`text-2xl ${
+                                insights.summary.score >= 80 ? 'text-success' :
+                                insights.summary.score >= 60 ? 'text-warning' :
+                                'text-danger'
+                              }`}>
+                                {insights.summary.score}
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold">{insights.summary.status}</h4>
+                                <p className="text-sm text-gray-600">{insights.summary.quick_take}</p>
+                              </div>
+                            </div>
+                          </CardBody>
+                        </Card>
+
+                        {/* Metrics Analysis */}
+                        <Card>
+                          <CardBody>
+                            <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
+                            <div className="space-y-4">
+                              {insights.metrics_analysis.highlights.map((highlight, index) => (
+                                <div key={index} className="flex items-center gap-3">
+                                  <div className={`text-xl ${
+                                    highlight.trend === 'up' ? 'text-success' :
+                                    highlight.trend === 'down' ? 'text-danger' :
+                                    'text-warning'
+                                  }`}>
+                                    {highlight.trend === 'up' ? '↑' : highlight.trend === 'down' ? '↓' : '→'}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="font-medium">{highlight.metric}</span>
+                                      <span className="text-sm text-gray-600">{highlight.value}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-600">{highlight.insight}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardBody>
+                        </Card>
+
+                        {/* Content Analysis */}
+                        <Card>
+                          <CardBody>
+                            <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {insights.content_analysis}
+                            </p>
+                          </CardBody>
+                        </Card>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)]">
+                        <div className="w-20 h-20 text-secondary mb-4">
+                          <MagnifyingGlassIcon className="w-full h-full" />
+                        </div>
+                        <p className="text-gray-600 text-center mb-4">
+                          No hay insights disponibles para este post.
+                        </p>
+                        <Button
+                          color="secondary"
+                          onClick={handleGenerateInsights}
+                          size="lg"
+                        >
+                          Generar Insights
+                        </Button>
+                      </div>
+                    ))}
+
+                    {/* Transcript Tab Content */}
+                    {activeTab === "transcript" && (
+                      <div className="flex-1 overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                          {!details.transcript && (
+                            <Button
+                              color="secondary"
+                              onClick={handleTranscribe}
+                              disabled={isTranscribing}
+                            >
+                              {isTranscribing ? (
+                                <>
+                                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Transcribiendo...
+                                </>
+                              ) : (
+                                'Transcribir Video'
+                              )}
+                            </Button>
+                          )}
+                          {details.transcript && (
+                            <button
+                              onClick={() => setIsExpanded(!isExpanded)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              {isExpanded ? (
+                                <ChevronUpIcon className="h-5 w-5" />
+                              ) : (
+                                <ChevronDownIcon className="h-5 w-5" />
+                              )}
+                            </button>
                           )}
                         </div>
-                      ) : (
-                        <div className="flex-1 flex items-center justify-center">
-                          <p className="text-gray-600">
-                            {isTranscribing 
-                              ? "Generando transcripción..." 
-                              : "No hay transcripción disponible."}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+
+                        {details.transcript ? (
+                          <div className={`transition-all duration-300 ${isExpanded ? '' : 'max-h-[calc(100vh-400px)]'}`}>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{details.transcript.full_text}</p>
+                            {isExpanded && details.transcript.segments && (
+                              <>
+                                <div className="mt-6 mb-2">
+                                  <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
+                                </div>
+                                <div className="space-y-2">
+                                  {details.transcript.segments.map((segment, index) => (
+                                    <div key={index} className="text-xs text-gray-500">
+                                      <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
+                                      <span className="ml-2">{segment.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center">
+                            <p className="text-gray-600">
+                              {isTranscribing 
+                                ? "Generando transcripción..." 
+                                : "No hay transcripción disponible."}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </CardBody>
               </Card>
             </div>
@@ -564,5 +701,33 @@ export default function PostPage() {
         </div>
       </div>
     </main>
+  );
+}
+// Componente para mensajes de carga rotativos
+function LoadingMessage() {
+  const messages = [
+    "Analizando métricas de engagement...",
+    "Procesando datos de alcance...",
+    "Comparando con promedios de categoría...",
+    "Identificando tendencias...",
+    "Generando insights..."
+  ];
+
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="h-6">
+      <p className="text-secondary-600 animate-fade-in">
+        {messages[messageIndex]}
+      </p>
+    </div>
   );
 }
