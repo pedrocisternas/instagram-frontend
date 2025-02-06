@@ -25,15 +25,12 @@ export default function PostPage() {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [insights, setInsights] = useState(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
   const [needsInsightsUpdate, setNeedsInsightsUpdate] = useState(false);
   const [activeTab, setActiveTab] = useState("insights");
-
-
   
   // Estado unificado para todos los detalles del post
   const [details, setDetails] = useState({
@@ -443,21 +440,8 @@ export default function PostPage() {
                         <Tab key="insights" title="Insights" />
                         <Tab key="transcript" title="Transcripción" />
                       </Tabs>
-                      {insightsGeneratedAt && (
-                        <Tooltip 
-                          content={`Última actualización: ${formatDate(insightsGeneratedAt)} ${formatTime(insightsGeneratedAt)}`}
-                        >
-                          <Button
-                            isIconOnly
-                            variant="light"
-                            size="sm"
-                          >
-                            <InformationCircleIcon className="h-4 w-4 text-gray-500" />
-                          </Button>
-                        </Tooltip>
-                      )}
                     </div>
-                    {needsInsightsUpdate && (
+                    {activeTab === "insights" && needsInsightsUpdate && (
                       <Button
                         color="secondary"
                         size="sm"
@@ -488,9 +472,6 @@ export default function PostPage() {
                               isIndeterminate
                               className="absolute inset-0"
                             />
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <BrainIcon className="w-8 h-8 text-secondary animate-pulse" />
-                            </div>
                           </div>
                         </div>
                         
@@ -620,8 +601,16 @@ export default function PostPage() {
                           color="secondary"
                           onClick={handleGenerateInsights}
                           size="lg"
+                          disabled={isLoadingInsights}
                         >
-                          Generar Insights
+                          {isLoadingInsights ? (
+                            <div className="flex items-center gap-2">
+                              <CircularProgress size="sm" color="current" />
+                              <span>Generando...</span>
+                            </div>
+                          ) : (
+                            "Generar Insights"
+                          )}
                         </Button>
                       </div>
                     ))}
@@ -649,38 +638,29 @@ export default function PostPage() {
                               )}
                             </Button>
                           )}
-                          {details.transcript && (
-                            <button
-                              onClick={() => setIsExpanded(!isExpanded)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              {isExpanded ? (
-                                <ChevronUpIcon className="h-5 w-5" />
-                              ) : (
-                                <ChevronDownIcon className="h-5 w-5" />
-                              )}
-                            </button>
-                          )}
                         </div>
 
                         {details.transcript ? (
-                          <div className={`transition-all duration-300 ${isExpanded ? '' : 'max-h-[calc(100vh-400px)]'}`}>
-                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{details.transcript.full_text}</p>
-                            {isExpanded && details.transcript.segments && (
-                              <>
-                                <div className="mt-6 mb-2">
-                                  <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
-                                </div>
-                                <div className="space-y-2">
-                                  {details.transcript.segments.map((segment, index) => (
-                                    <div key={index} className="text-xs text-gray-500">
-                                      <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
-                                      <span className="ml-2">{segment.text}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </>
-                            )}
+                          <div className="space-y-4">
+                            {/* Texto completo siempre visible */}
+                            <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {details.transcript.full_text}
+                            </div>
+
+                            {/* Segmentos con marcas de tiempo (expandible) */}
+                            <div className={`transition-all duration-300 overflow-hidden max-h-[1000px]`}>
+                              <div className="mt-6 mb-2">
+                                <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {details.transcript.segments.map((segment, index) => (
+                                  <div key={index} className="text-xs text-gray-500">
+                                    <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
+                                    <span className="ml-2">{segment.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex-1 flex items-center justify-center">
