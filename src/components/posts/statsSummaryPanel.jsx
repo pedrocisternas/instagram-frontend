@@ -14,17 +14,16 @@ const StatItem = ({ label, value, subtitle, formatter = (val) => Math.round(val)
 
 export default function StatsSummaryPanel({ posts }) {
   const hasMetrics = (post) => {
-    return post.likes !== null || 
-           post.comments !== null || 
-           post.views !== null || 
-           post.avg_watch_time !== null ||
-           post.saves !== null ||
-           post.shares !== null;
+    // Un post tiene métricas si al menos una es mayor que 0
+    return post.likes > 0 || 
+           post.comments > 0 || 
+           post.views > 0 || 
+           post.saves > 0 ||
+           post.shares > 0;
   };
 
   const isValidReel = (post) => {
-    return (post.media_type === 'VIDEO' || post.media_type === 'REEL') && 
-           post.views !== null;
+    return (post.media_type === 'VIDEO' || post.media_type === 'REEL');
   };
 
   const getValidPostsCount = () => {
@@ -44,19 +43,23 @@ export default function StatsSummaryPanel({ posts }) {
   };
 
   const calculateAverage = (metric, filterFn = null) => {
-    // Primero filtramos posts con alguna métrica
+    // Primero filtramos posts que tengan alguna métrica > 0
     let filteredPosts = posts?.filter(hasMetrics) || [];
     
-    // Luego aplicamos el filtro específico si existe
-    if (filterFn) {
-      filteredPosts = filteredPosts.filter(filterFn);
+    // Si es para views, solo consideramos reels/videos
+    if (metric === 'views') {
+        filteredPosts = filteredPosts.filter(isValidReel);
+    }
+    // Para cualquier otra métrica, aplicamos el filtro específico si existe
+    else if (filterFn) {
+        filteredPosts = filteredPosts.filter(filterFn);
     }
 
-    // Para métricas específicas, solo consideramos posts que tengan esa métrica
-    const postsWithMetric = filteredPosts.filter(post => post[metric] !== null);
+    // Solo consideramos posts que tengan la métrica específica > 0
+    const postsWithMetric = filteredPosts.filter(post => post[metric] > 0);
 
     if (!postsWithMetric.length) return 0;
-    const sum = postsWithMetric.reduce((acc, post) => acc + (post[metric] || 0), 0);
+    const sum = postsWithMetric.reduce((acc, post) => acc + post[metric], 0);
     return sum / postsWithMetric.length;
   };
 

@@ -120,7 +120,18 @@ export default function AnalyticsDashboard() {
   // Datos del gráfico filtrados y ordenados
   const chartData = useMemo(() => {
     return [...filteredPosts]
-      .filter(post => post.views > 0) // Filtramos posts con 0 views
+      .filter(post => {
+        // Solo incluir posts que tengan alguna métrica
+        const hasMetrics = post.likes > 0 || 
+                          post.comments > 0 || 
+                          post.views > 0 || 
+                          post.saves > 0 ||
+                          post.shares > 0;
+        
+        // Para el gráfico de views, solo queremos reels/videos con views
+        const isValidReel = (post.media_type === 'VIDEO' || post.media_type === 'REEL');
+        return hasMetrics && isValidReel && post.views > 0;
+      })
       .sort((a, b) => new Date(b.published_at) - new Date(a.published_at));
   }, [filteredPosts]);
 
