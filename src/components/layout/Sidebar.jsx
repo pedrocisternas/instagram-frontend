@@ -6,7 +6,7 @@ import {
   HomeIcon, 
   ChartBarIcon,
   Square3Stack3DIcon,
-  PrinterIcon
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { APP_CONFIG } from '@/config/app';
 import Image from 'next/image';
@@ -29,7 +29,7 @@ const menuItems = [
   },
   {
     name: 'Home',
-    icon: PrinterIcon,
+    icon: AdjustmentsHorizontalIcon,
     path: '/home',
   },
 ];

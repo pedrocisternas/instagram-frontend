@@ -12,6 +12,8 @@ export default function HomePage() {
   const [timeRange, setTimeRange] = useState("30days");
   const [selectedContent, setSelectedContent] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -20,6 +22,8 @@ export default function HomePage() {
       try {
         const data = await fetchDashboardData(APP_CONFIG.USERNAME);
         setPosts(data.posts);
+        setCategories(data.categories);
+        setSubcategories(data.subcategories);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
@@ -48,31 +52,63 @@ export default function HomePage() {
           selectedKey={timeRange} 
           onSelectionChange={setTimeRange}
           className="justify-center"
+          size="md"
+          variant="solid"
+          color="secondary"
+          classNames={{
+            tabList: "max-w-[400px]"
+          }}
         >
-          <Tab key="30days" title="ÚLTIMOS 30 DÍAS" />
-          <Tab key="alltime" title="TODO EL TIEMPO" />
+          <Tab key="30days" title="Últimos 30 días" />
+          <Tab key="alltime" title="Todo el tiempo" />
         </Tabs>
       </div>
 
-      {/* Contenedor para lista y preview */}
+      {/* Contenedor principal */}
       <div className="grid grid-cols-5 gap-6 mb-8">
-        {/* Lista de contenido top (3 columnas) */}
-        <div className="col-span-3">
+        {/* Contenedor izquierdo (3/5) */}
+        <div className="col-span-3 space-y-6">
+          {/* Panel superior */}
+          <div>
             <MetricsPanel 
-            timeRange={timeRange} 
-            posts={filteredPosts}
+              timeRange={timeRange} 
+              posts={filteredPosts}
             />
+          </div>
+          
+          {/* Panel inferior dividido */}
+          <div className="grid grid-cols-5 gap-6">
+            {/* Lista de contenido top */}
+            <div className="col-span-3">
+              <TopContentList 
+                posts={filteredPosts}
+                timeRange={timeRange}
+                onContentSelect={setSelectedContent}
+                categories={categories}
+                subcategories={subcategories}
+              />
+            </div>
+            {/* Preview del contenido */}
+            <div className="col-span-2">
+              <ContentPreview 
+                selectedContent={selectedContent} 
+                posts={filteredPosts?.filter(post => post.views > 0)
+                  .sort((a, b) => (b.views || 0) - (a.views || 0))
+                  .slice(0, 7)}
+              />
+            </div>
+          </div>
         </div>
-        
-        {/* Preview del contenido (2 columnas) */}
-        <div className="col-span-2">
-          <ContentPreview selectedContent={selectedContent} />
-        </div>
-      </div>
 
-      {/* Distribución de contenido */}
-      <div className="mb-8">
-        <ContentDistribution timeRange={timeRange} />
+        {/* Contenedor derecho (2/5) */}
+        <div className="col-span-2 space-y-6">
+          {/* Gráfico de distribución */}
+          <ContentDistribution 
+            posts={filteredPosts}
+            categories={categories}
+          />
+          {/* Espacio para futuros componentes */}
+        </div>
       </div>
     </main>
   );
