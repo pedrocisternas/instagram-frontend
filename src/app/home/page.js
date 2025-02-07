@@ -9,15 +9,16 @@ import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
 import { getDashboardInsights } from '@/services/api/insights';
 
-export default function HomePage() {
+export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
   const [timeRange, setTimeRange] = useState("30days");
   const [selectedContent, setSelectedContent] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
+  const [posts, setPosts] = useState(initialPosts || []);
+  const [categories, setCategories] = useState(initialCategories || []);
+  const [subcategories, setSubcategories] = useState(initialSubcategories || []);
   const [isLoading, setIsLoading] = useState(true);
   const [insights, setInsights] = useState(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -29,13 +30,16 @@ export default function HomePage() {
         setSubcategories(data.subcategories);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        setError('Error loading data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadData();
-  }, []);
+    if (!initialPosts) {
+      loadData();
+    }
+  }, [initialPosts]);
 
   // Filtrar posts según timeRange
   const filteredPosts = useMemo(() => {
@@ -55,10 +59,19 @@ export default function HomePage() {
       console.log('Insights generados:', data.insights);
     } catch (error) {
       console.error('Error generando insights:', error);
+      setError('Error generating insights');
     } finally {
       setIsGeneratingInsights(false);
     }
   };
+
+  if (isLoading) {
+    return <div>Loading...</div>; // O un componente de esqueleto
+  }
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <main className="p-8 bg-gray-50">
