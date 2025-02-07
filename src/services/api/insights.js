@@ -86,3 +86,45 @@ export async function checkPostInsights(postId) {
     throw error;
   }
 }
+
+export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
+  try {
+    const queryParams = new URLSearchParams();
+    queryParams.append('username', APP_CONFIG.USERNAME);
+    timeRanges.forEach(range => queryParams.append('timeRanges[]', range));
+
+    console.log('Service: Fetching dashboard insights for ranges:', timeRanges);
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/insights/dashboard?${queryParams.toString()}`
+    );
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Service: Error response:', errorData);
+      throw new Error(errorData.details || 'Error getting dashboard insights');
+    }
+
+    const data = await response.json();
+    console.log('Service: Raw dashboard insights:', data);
+    
+    // Asegurarnos de que los insights tengan la estructura correcta
+    const processedInsights = Object.entries(data.insights).reduce((acc, [timeRange, insight]) => {
+      acc[timeRange] = {
+        ...insight,
+        content: typeof insight.content === 'string' ? JSON.parse(insight.content) : insight.content
+      };
+      return acc;
+    }, {});
+
+    console.log('Service: Processed dashboard insights:', processedInsights);
+
+    return {
+      insights: processedInsights,
+      needs_update: data.needs_update
+    };
+  } catch (error) {
+    console.error('Service: Error getting dashboard insights:', error);
+    throw error;
+  }
+}

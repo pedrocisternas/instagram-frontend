@@ -1,12 +1,13 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react';
-import { Tabs, Tab } from "@heroui/react";
+import { Tabs, Tab, Button } from "@heroui/react";
 import MetricsPanel from '@/components/home/MetricsPanel';
 import TopContentList from '@/components/home/TopContentList';
 import ContentPreview from '@/components/home/ContentPreview';
 import ContentDistribution from '@/components/home/ContentDistribution';
 import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
+import { getDashboardInsights } from '@/services/api/insights';
 
 export default function HomePage() {
   const [timeRange, setTimeRange] = useState("30days");
@@ -15,6 +16,8 @@ export default function HomePage() {
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [insights, setInsights] = useState(null);
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -44,10 +47,23 @@ export default function HomePage() {
     return posts;
   }, [posts, timeRange]);
 
+  const handleGenerateInsights = async () => {
+    setIsGeneratingInsights(true);
+    try {
+      const data = await getDashboardInsights(['7d', '30d', 'all']);
+      setInsights(data.insights);
+      console.log('Insights generados:', data.insights);
+    } catch (error) {
+      console.error('Error generando insights:', error);
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
+
   return (
     <main className="p-8 bg-gray-50">
-      {/* Tabs de período */}
-      <div className="mb-6">
+      {/* Contenedor de tabs y botón */}
+      <div className="mb-6 flex justify-between items-center">
         <Tabs 
           selectedKey={timeRange} 
           onSelectionChange={setTimeRange}
@@ -62,6 +78,14 @@ export default function HomePage() {
           <Tab key="30days" title="Últimos 30 días" />
           <Tab key="alltime" title="Todo el tiempo" />
         </Tabs>
+
+        <Button
+          color="primary"
+          onClick={handleGenerateInsights}
+          isLoading={isGeneratingInsights}
+        >
+          {isGeneratingInsights ? 'Generando...' : 'Generar Insights'}
+        </Button>
       </div>
 
       {/* Contenedor principal */}
@@ -90,12 +114,12 @@ export default function HomePage() {
             </div>
             {/* Preview del contenido */}
             <div className="col-span-2">
-              <ContentPreview 
+              {/* <ContentPreview 
                 selectedContent={selectedContent} 
                 posts={filteredPosts?.filter(post => post.views > 0)
                   .sort((a, b) => (b.views || 0) - (a.views || 0))
                   .slice(0, 7)}
-              />
+              /> */}
             </div>
           </div>
         </div>
