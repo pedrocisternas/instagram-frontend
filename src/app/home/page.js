@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { Tabs, Tab, Button } from "@heroui/react";
 import MetricsPanel from '@/components/home/MetricsPanel';
 import TopContentList from '@/components/home/TopContentList';
-import ContentPreview from '@/components/home/ContentPreview';
 import ContentDistribution from '@/components/home/ContentDistribution';
 import InsightsPanel from '@/components/home/InsightsPanel';
 import { fetchDashboardData } from '@/services/api/posts';
