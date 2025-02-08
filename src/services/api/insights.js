@@ -93,31 +93,22 @@ export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
     queryParams.append('username', APP_CONFIG.USERNAME);
     timeRanges.forEach(range => queryParams.append('timeRanges[]', range));
 
-    console.log('Service: Fetching dashboard insights for ranges:', timeRanges);
-
     const response = await fetch(
       `${API_BASE_URL}/api/insights/dashboard?${queryParams.toString()}`
     );
     
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Service: Error response:', errorData);
       throw new Error(errorData.details || 'Error getting dashboard insights');
     }
 
     const data = await response.json();
-    console.log('Service: Raw dashboard insights:', data);
     
-    // Asegurarnos de que los insights tengan la estructura correcta
+    // Simplificar el procesamiento
     const processedInsights = Object.entries(data.insights).reduce((acc, [timeRange, insight]) => {
-      acc[timeRange] = {
-        ...insight,
-        content: typeof insight.content === 'string' ? JSON.parse(insight.content) : insight.content
-      };
+      acc[timeRange] = insight; // El contenido ya viene en el formato correcto
       return acc;
     }, {});
-
-    console.log('Service: Processed dashboard insights:', processedInsights);
 
     return {
       insights: processedInsights,

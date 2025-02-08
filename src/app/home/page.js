@@ -5,9 +5,11 @@ import MetricsPanel from '@/components/home/MetricsPanel';
 import TopContentList from '@/components/home/TopContentList';
 import ContentPreview from '@/components/home/ContentPreview';
 import ContentDistribution from '@/components/home/ContentDistribution';
+import InsightsPanel from '@/components/home/InsightsPanel';
 import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
 import { getDashboardInsights } from '@/services/api/insights';
+import HomeSkeleton from '@/components/home/HomeSkeleton';
 
 export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
   const [timeRange, setTimeRange] = useState("30days");
@@ -41,32 +43,55 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     }
   }, [initialPosts]);
 
+  // Convertir el timeRange del UI al formato de la API
+  const getApiTimeRange = (uiTimeRange) => {
+    switch (uiTimeRange) {
+      case "7days":
+        return "7d";
+      case "30days":
+        return "30d";
+      case "alltime":
+        return "all";
+      default:
+        return "30d"; // Mantenemos el default
+    }
+  };
+
   // Filtrar posts según timeRange
   const filteredPosts = useMemo(() => {
-    if (timeRange === "30days") {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return posts.filter(post => new Date(post.published_at) >= thirtyDaysAgo);
+    const now = new Date();
+    switch (timeRange) {
+      case "7days":
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(now.getDate() - 7);
+        return posts.filter(post => new Date(post.published_at) >= sevenDaysAgo);
+      case "30days":
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(now.getDate() - 30);
+        return posts.filter(post => new Date(post.published_at) >= thirtyDaysAgo);
+      default:
+        return posts;
     }
-    return posts;
   }, [posts, timeRange]);
 
   const handleGenerateInsights = async () => {
     setIsGeneratingInsights(true);
     try {
+      // Solicitamos todos los insights pero mostramos solo el relevante
       const data = await getDashboardInsights(['7d', '30d', 'all']);
+      if (!data.insights) {
+        throw new Error('Invalid insights data structure');
+      }
       setInsights(data.insights);
-      console.log('Insights generados:', data.insights);
     } catch (error) {
-      console.error('Error generando insights:', error);
-      setError('Error generating insights');
+      setError(error.message || 'Error generating insights');
     } finally {
       setIsGeneratingInsights(false);
     }
   };
 
   if (isLoading) {
-    return <div>Loading...</div>; // O un componente de esqueleto
+    return <HomeSkeleton />;
   }
 
   if (error) {
@@ -85,9 +110,10 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
           variant="solid"
           color="secondary"
           classNames={{
-            tabList: "max-w-[400px]"
+            tabList: "max-w-[500px]"
           }}
         >
+          <Tab key="7days" title="Últimos 7 días" />
           <Tab key="30days" title="Últimos 30 días" />
           <Tab key="alltime" title="Todo el tiempo" />
         </Tabs>
@@ -114,7 +140,7 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
           </div>
           
           {/* Panel inferior dividido */}
-          <div className="grid grid-cols-5 gap-6">
+          <div className="grid grid-cols-6 gap-6">
             {/* Lista de contenido top */}
             <div className="col-span-3">
               <TopContentList 
@@ -126,13 +152,11 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
               />
             </div>
             {/* Preview del contenido */}
-            <div className="col-span-2">
-              {/* <ContentPreview 
-                selectedContent={selectedContent} 
-                posts={filteredPosts?.filter(post => post.views > 0)
-                  .sort((a, b) => (b.views || 0) - (a.views || 0))
-                  .slice(0, 7)}
-              /> */}
+            <div className="col-span-3">
+              <InsightsPanel 
+                insights={insights} 
+                currentTimeRange={getApiTimeRange(timeRange)} 
+              />
             </div>
           </div>
         </div>
