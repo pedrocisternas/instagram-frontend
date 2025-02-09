@@ -9,6 +9,7 @@ import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
 import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
+import PublishingVolume from '@/components/home/PublishingVolume';
 
 export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
   const [timeRange, setTimeRange] = useState("30days");
@@ -189,7 +190,13 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
             posts={filteredPosts}
             categories={categories}
           />
-          {/* Espacio para futuros componentes */}
+          {/* Nuevo componente de volumen de publicaciones */}
+          {timeRange !== "alltime" && (
+            <PublishingVolume 
+              posts={posts}
+              timeRange={timeRange}
+            />
+          )}
         </div>
       </div>
     </main>
