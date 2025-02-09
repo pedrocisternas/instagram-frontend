@@ -7,7 +7,7 @@ import ContentDistribution from '@/components/home/ContentDistribution';
 import InsightsPanel from '@/components/home/InsightsPanel';
 import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
-import { getDashboardInsights } from '@/services/api/insights';
+import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
 
 export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
@@ -20,17 +20,39 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   const [insights, setInsights] = useState(null);
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [error, setError] = useState(null);
+  const [metrics, setMetrics] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = await fetchDashboardData(APP_CONFIG.USERNAME);
-        setPosts(data.posts);
-        setCategories(data.categories);
-        setSubcategories(data.subcategories);
+        console.log('[HomePage] Iniciando carga de datos...');
+        
+        const [dashboardData, metricsData] = await Promise.all([
+          fetchDashboardData(APP_CONFIG.USERNAME),
+          getDashboardMetrics()
+        ]);
+
+        console.log('[HomePage] Datos recibidos:', {
+          postsCount: dashboardData.posts.length,
+          hasMetrics: !!metricsData.metrics,
+          hasInsights: !!metricsData.insights
+        });
+
+        setPosts(dashboardData.posts);
+        setCategories(dashboardData.categories);
+        setSubcategories(dashboardData.subcategories);
+        setMetrics(metricsData.metrics);
+        
+        if (metricsData.insights) {
+          console.log('[HomePage] Insights encontrados, actualizando estado');
+          setInsights(metricsData.insights);
+        } else {
+          console.log('[HomePage] No hay insights, iniciando generación en segundo plano');
+          handleGenerateInsights();
+        }
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        console.error('[HomePage] Error loading data:', error);
         setError('Error loading data');
       } finally {
         setIsLoading(false);
@@ -76,14 +98,14 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   const handleGenerateInsights = async () => {
     setIsGeneratingInsights(true);
     try {
-      // Solicitamos todos los insights pero mostramos solo el relevante
       const data = await getDashboardInsights(['7d', '30d', 'all']);
-      if (!data.insights) {
-        throw new Error('Invalid insights data structure');
+      if (data.insights) {
+        console.log('[HomePage] Insights generados correctamente');
+        setInsights(data.insights);
       }
-      setInsights(data.insights);
     } catch (error) {
-      setError(error.message || 'Error generating insights');
+      console.error('[HomePage] Error generando insights:', error);
+      setError('Error generating insights');
     } finally {
       setIsGeneratingInsights(false);
     }
@@ -134,7 +156,7 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
           <div>
             <MetricsPanel 
               timeRange={timeRange} 
-              posts={filteredPosts}
+              metrics={metrics}
             />
           </div>
           

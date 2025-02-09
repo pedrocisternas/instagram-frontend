@@ -15,10 +15,11 @@ const InsightsPanel = ({ insights, currentTimeRange }) => {
     );
   }
 
-  // Obtener solo el insight correspondiente al timeRange actual
-  const currentInsight = insights[currentTimeRange];
+  // Obtener el insight del período actual
+  const currentInsight = insights[currentTimeRange]?.insights;
+  console.log('[InsightsPanel] Current insight:', { currentTimeRange, currentInsight });
 
-  if (!currentInsight?.content) {
+  if (!currentInsight?.positive && !currentInsight?.negative) {
     return (
       <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b border-gray-200">
@@ -31,12 +32,15 @@ const InsightsPanel = ({ insights, currentTimeRange }) => {
     );
   }
 
-  const { positive, negative } = currentInsight.content;
+  const { positive, negative } = currentInsight;
 
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-xl font-semibold">Insights</h2>
+        {currentInsight.summary && (
+          <p className="text-sm text-gray-600 mt-1">{currentInsight.summary}</p>
+        )}
       </div>
       
       <div className="p-4 hover:bg-gray-50">

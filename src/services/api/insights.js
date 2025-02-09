@@ -94,28 +94,48 @@ export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
     timeRanges.forEach(range => queryParams.append('timeRanges[]', range));
 
     const response = await fetch(
-      `${API_BASE_URL}/api/insights/dashboard?${queryParams.toString()}`
+      `${API_BASE_URL}/api/insights/dashboard/insights?${queryParams.toString()}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Error getting dashboard insights');
+    }
+
+    const data = await response.json();
+    return {
+      insights: data.insights,
+      needs_update: false
+    };
+  } catch (error) {
+    console.error('Service: Error getting dashboard insights:', error);
+    throw error;
+  }
+}
+
+export async function getDashboardMetrics() {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/insights/dashboard/metrics?username=${APP_CONFIG.USERNAME}`
     );
     
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.details || 'Error getting dashboard insights');
+      throw new Error(errorData.details || 'Error getting dashboard metrics');
     }
 
     const data = await response.json();
     
-    // Simplificar el procesamiento
-    const processedInsights = Object.entries(data.insights).reduce((acc, [timeRange, insight]) => {
-      acc[timeRange] = insight; // El contenido ya viene en el formato correcto
-      return acc;
-    }, {});
+    if (!data.success) {
+      throw new Error(data.error || 'Error getting dashboard metrics');
+    }
 
-    return {
-      insights: processedInsights,
-      needs_update: data.needs_update
-    };
+    // La respuesta debería incluir:
+    // - metrics: métricas por período
+    // - insights: insights procesados por período
+    // - needs_update: flag para regeneración
+    return data;
   } catch (error) {
-    console.error('Service: Error getting dashboard insights:', error);
+    console.error('Service: Error getting dashboard metrics:', error);
     throw error;
   }
 }
