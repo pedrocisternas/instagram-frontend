@@ -10,6 +10,7 @@ import { APP_CONFIG } from '@/config/app';
 import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
 import PublishingVolume from '@/components/home/PublishingVolume';
+import PublishingMap from '@/components/home/PublishingMap';
 
 export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
   const [timeRange, setTimeRange] = useState("30days");
@@ -190,8 +191,10 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
             posts={filteredPosts}
             categories={categories}
           />
-          {/* Nuevo componente de volumen de publicaciones */}
-          {timeRange !== "alltime" && (
+          {/* Componentes de visualización de volumen */}
+          {timeRange === "alltime" ? (
+            <PublishingMap posts={posts} />
+          ) : (
             <PublishingVolume 
               posts={posts}
               timeRange={timeRange}
