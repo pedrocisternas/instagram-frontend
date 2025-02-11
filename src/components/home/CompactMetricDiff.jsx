@@ -26,13 +26,13 @@ export default function CompactMetricDiff({ diff, baseValue, visible = true }) {
       {/* Tooltip (solo visible cuando el componente es visible) */}
       {baseValue !== undefined && visible && (
         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block">
-          <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-            Valor base: {typeof baseValue === 'number' ? baseValue.toLocaleString() : baseValue}
+          <div className="bg-primary text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+            Valor: {typeof baseValue === 'number' ? baseValue.toLocaleString() : baseValue}
           </div>
           {/* Flecha del tooltip */}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-            <div className="border-solid border-4 border-transparent border-t-gray-900"></div>
-          </div>
+          {/* <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
+            <div className="border-solid border-4 border-transparent border-t-white-900"></div>
+          </div> */}
         </div>
       )}
     </div>

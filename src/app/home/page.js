@@ -5,12 +5,22 @@ import MetricsPanel from '@/components/home/MetricsPanel';
 import TopContentList from '@/components/home/TopContentList';
 import ContentDistribution from '@/components/home/ContentDistribution';
 import InsightsPanel from '@/components/home/InsightsPanel';
+import dynamic from 'next/dynamic';
 import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
 import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
-import PublishingVolume from '@/components/home/PublishingVolume';
-import PublishingMap from '@/components/home/PublishingMap';
+
+// Importar dinámicamente los componentes que usan ApexCharts
+const PublishingVolume = dynamic(
+  () => import('@/components/home/PublishingVolume'),
+  { ssr: false }
+);
+
+const PublishingMap = dynamic(
+  () => import('@/components/home/PublishingMap'),
+  { ssr: false }
+);
 
 export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
   const [timeRange, setTimeRange] = useState("30days");
@@ -65,6 +75,43 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
       loadData();
     }
   }, [initialPosts]);
+
+  // Agregar el listener para el evento de sincronización
+  useEffect(() => {
+    const handleSync = async (event) => {
+      try {
+        console.log('[HomePage] Recibiendo datos sincronizados...');
+        const data = event.detail;
+        
+        // Actualizar datos básicos
+        setPosts(data.posts);
+        setCategories(data.categories);
+        setSubcategories(data.subcategories);
+        
+        // Recargar métricas del dashboard
+        const metricsData = await getDashboardMetrics();
+        console.log('[HomePage] Actualizando métricas y insights');
+        
+        if (metricsData.metrics) {
+          setMetrics(metricsData.metrics);
+        }
+        
+        // Mantener la lógica existente de insights
+        if (metricsData.insights) {
+          console.log('[HomePage] Insights encontrados, actualizando estado');
+          setInsights(metricsData.insights);
+        } else {
+          console.log('[HomePage] No hay insights, iniciando generación en segundo plano');
+          handleGenerateInsights();
+        }
+      } catch (error) {
+        console.error('[HomePage] Error en sincronización:', error);
+      }
+    };
+
+    window.addEventListener('metrics-synced', handleSync);
+    return () => window.removeEventListener('metrics-synced', handleSync);
+  }, []); // Sin dependencias ya que solo usamos setters
 
   // Convertir el timeRange del UI al formato de la API
   const getApiTimeRange = (uiTimeRange) => {

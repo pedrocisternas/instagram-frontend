@@ -92,6 +92,23 @@ export default function RankingsPage() {
     loadData();
   }, []);
 
+  // Agregar el listener para el evento de sincronización
+  useEffect(() => {
+    const handleSync = async (event) => {
+      try {
+        const data = event.detail;
+        setPosts(data.posts);
+        setCategories(data.categories);
+        setSubcategories(data.subcategories);
+      } catch (error) {
+        console.error('[RankingsPage] Error en sincronización:', error);
+      }
+    };
+
+    window.addEventListener('metrics-synced', handleSync);
+    return () => window.removeEventListener('metrics-synced', handleSync);
+  }, []); // Sin dependencias ya que solo usamos setters
+
   if (loading) return <RankingsSkeleton />;
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
@@ -99,7 +116,14 @@ export default function RankingsPage() {
     <main className="p-4">
       <div className="container mx-auto max-w-2xl">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Top Subcategorías</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Rankings por subcategoría</h1>
+            {/* <SyncButton
+              isSyncing={isSyncing}
+              onSync={syncAllData}
+              lastUpdate={lastUpdate}
+            /> */}
+          </div>
           <Select 
             defaultSelectedKeys={['views']}
             value={selectedMetric}

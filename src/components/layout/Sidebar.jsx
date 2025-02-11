@@ -10,6 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { APP_CONFIG } from '@/config/app';
 import Image from 'next/image';
+import CompactSyncButton from '@/components/buttons/CompactSyncButton'
+import { useSyncStore } from '@/store/sync';
 
 const menuItems = [
   {
@@ -36,22 +38,32 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { isSyncing, syncMetrics, lastUpdate } = useSyncStore();
+
+  const handleSync = async () => {
+    try {
+      const data = await syncMetrics();
+      // Emitir un evento personalizado para notificar a las páginas
+      const syncEvent = new CustomEvent('metrics-synced', { detail: data });
+      window.dispatchEvent(syncEvent);
+    } catch (error) {
+      console.error('Error syncing:', error);
+    }
+  };
 
   return (
     <div className="w-20 h-screen bg-white border-r border-gray-200 fixed left-0 top-0">
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full overflow-hidden">
-              <Image
-                src="/images/profile.jpg"
-                alt="Profile picture"
-                width={40}
-                height={40}
-                className="object-cover"
-              />
-            </div>
+          <div className="w-10 h-10 rounded-full overflow-hidden">
+            <Image
+              src="/images/profile.jpg"
+              alt="Profile picture"
+              width={40}
+              height={40}
+              className="object-cover"
+            />
           </div>
         </div>
 
@@ -64,7 +76,7 @@ export default function Sidebar() {
                 key={item.path}
                 href={item.path}
                 className={`
-                  flex items-center justify-center p-3 rounded-lg transition-colors
+                  flex items-center justify-center p-3 rounded-lg transition-colors w-14
                   ${isActive 
                     ? 'bg-primary text-white' 
                     : 'text-gray-700 hover:bg-gray-100'
@@ -72,11 +84,20 @@ export default function Sidebar() {
                 `}
                 title={item.name}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className="h-5 w-5 shrink-0" />
               </Link>
             );
           })}
         </nav>
+
+        {/* Sync Button al final */}
+        <div className="p-4 border-t border-gray-200">
+          <CompactSyncButton
+            isSyncing={isSyncing}
+            onSync={handleSync}
+            lastUpdate={lastUpdate}
+          />
+        </div>
       </div>
     </div>
   );

@@ -265,6 +265,27 @@ export default function Home() {
     }
   };
 
+  // Agregar el listener para el evento de sincronización
+  useEffect(() => {
+    const handleSync = async (event) => {
+      const data = event.detail;
+      setAllPosts(data.posts);
+      setCategories(data.categories);
+      setSubcategories(data.subcategories);
+      
+      // Actualizar lastUpdate si hay posts
+      if (data.posts.length > 0) {
+        const latestUpdate = data.posts.reduce((latest, post) => {
+          return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
+        }, data.posts[0].metrics_updated_at);
+        setLastUpdate(latestUpdate);
+      }
+    };
+
+    window.addEventListener('metrics-synced', handleSync);
+    return () => window.removeEventListener('metrics-synced', handleSync);
+  }, [setLastUpdate]);
+
   // Render
   if (isInitialLoading) {
     return <DashboardSkeleton />;
@@ -276,11 +297,12 @@ export default function Home() {
     <main className="p-8 bg-gray-50">
       <div className="flex justify-between items-start mb-6">
         <div className="flex gap-2">
-          <SyncButton
+        <h1 className="text-2xl font-bold">Publicaciones</h1>
+          {/* <SyncButton
             isSyncing={isSyncing}
             onSync={syncAllPages}
             lastUpdate={lastUpdate}
-          />
+          /> */}
           {/* <Button 
             color="secondary"
             onPress={handleGenerateInsights}

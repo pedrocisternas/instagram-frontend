@@ -343,19 +343,40 @@ export default function AnalyticsDashboard() {
     loadSubcategories();
   }, [categories]);
 
+  // Agregar el listener para el evento de sincronización
+  useEffect(() => {
+    const handleSync = async (event) => {
+      const data = event.detail;
+      setAllPosts(data.posts);
+      setCategories(data.categories);
+      
+      // Actualizar lastUpdate si hay posts
+      if (data.posts.length > 0) {
+        const latestUpdate = data.posts.reduce((latest, post) => {
+          return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
+        }, data.posts[0].metrics_updated_at);
+        setLastUpdate(latestUpdate);
+      }
+    };
+
+    window.addEventListener('metrics-synced', handleSync);
+    return () => window.removeEventListener('metrics-synced', handleSync);
+  }, [setLastUpdate]);
+
   if (loading) return <AnalyticsSkeleton />;
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
   if (!chartData || chartData.length === 0) return <div className="p-8">No hay datos disponibles</div>;
 
   return (
     <main className="p-8 bg-gray-50">
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <SyncButton
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Analítica</h1>
+          {/* <SyncButton
             isSyncing={isSyncing}
             onSync={syncAllData}
             lastUpdate={lastUpdate}
-          />
+          /> */}
         </div>
         
         <PostFilters 

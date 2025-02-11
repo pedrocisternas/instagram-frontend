@@ -127,6 +127,41 @@ export default function PostPage() {
     loadData();
   }, [id]);
 
+  // Agregar el listener para el evento de sincronización
+  useEffect(() => {
+    const handleSync = async (event) => {
+      if (!details.post?.id) return; // Si no hay post, no hacemos nada
+      
+      const data = event.detail;
+      // Encontrar el post actualizado en los datos sincronizados
+      const updatedPost = data.posts.find(p => p.id === details.post.id);
+      
+      if (updatedPost) {
+        setDetails(prev => ({
+          ...prev,
+          post: updatedPost
+        }));
+      }
+
+      // Actualizar categorías y subcategorías si están presentes en los datos
+      if (data.categories) {
+        setDetails(prev => ({
+          ...prev,
+          categories: data.categories
+        }));
+      }
+      if (data.subcategories) {
+        setDetails(prev => ({
+          ...prev,
+          subcategories: data.subcategories
+        }));
+      }
+    };
+
+    window.addEventListener('metrics-synced', handleSync);
+    return () => window.removeEventListener('metrics-synced', handleSync);
+  }, [details.post?.id]); // Dependencias necesarias
+
   if (loading) return (
     <main className="p-4">
       <div className="container mx-auto">
