@@ -15,6 +15,7 @@ import PostFilters from '@/components/filters/PostFilters';
 import { useRouter } from 'next/navigation';
 import AnalyticsSkeleton from '@/components/analytics/AnalyticsSkeleton';
 import SyncButton from '@/components/buttons/SyncButton';
+import { useAuthStore } from '@/store/auth';
 
 // Importamos ApexCharts de forma dinámica para evitar errores de SSR
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -36,6 +37,9 @@ export default function AnalyticsDashboard() {
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
 
   const router = useRouter();
+
+  // Agregar esto cerca de los otros hooks al inicio del componente
+  const { user, authState } = useAuthStore();
 
   // Función auxiliar para extraer el color del texto de la clase de Tailwind
   const getCategoryColor = (category) => {
@@ -67,7 +71,12 @@ export default function AnalyticsDashboard() {
   // Fetch initial data
   const fetchPostsData = async () => {
     try {
-      const data = await fetchPosts(APP_CONFIG.USERNAME);
+      if (!user?.username) {
+        console.log('No username available for fetching posts');
+        setAllPosts([]);
+        return;
+      }
+      const data = await fetchPosts(user.username);
       setAllPosts(data.posts);
       if (data.posts.length > 0) {
         const latestUpdate = data.posts.reduce((latest, post) => {
@@ -84,7 +93,12 @@ export default function AnalyticsDashboard() {
 
   const fetchCategoriesData = async () => {
     try {
-      const categories = await fetchCategories(APP_CONFIG.USERNAME);
+      if (!user?.username) {
+        console.log('No username available for fetching categories');
+        setCategories([]);
+        return;
+      }
+      const categories = await fetchCategories(user.username);
       setCategories(categories);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -309,6 +323,10 @@ export default function AnalyticsDashboard() {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
+        if (!user?.username) {
+          console.log('No username available, skipping initial data fetch');
+          return;
+        }
         await Promise.all([
           fetchPostsData(),
           fetchCategoriesData()
@@ -320,16 +338,18 @@ export default function AnalyticsDashboard() {
       }
     };
 
-    fetchInitialData();
-  }, []);
+    if (user?.username) {
+      fetchInitialData();
+    }
+  }, [user?.username]);
 
   useEffect(() => {
     const loadSubcategories = async () => {
-      if (!categories.length) return;
+      if (!categories.length || !user?.username) return;
       
       try {
         const promises = categories.map(category => 
-          fetchSubcategories(APP_CONFIG.USERNAME, category.id)
+          fetchSubcategories(user.username, category.id)
         );
         
         const results = await Promise.all(promises);
@@ -341,7 +361,7 @@ export default function AnalyticsDashboard() {
     };
 
     loadSubcategories();
-  }, [categories]);
+  }, [categories, user?.username]);
 
   // Agregar el listener para el evento de sincronización
   useEffect(() => {

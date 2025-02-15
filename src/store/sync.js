@@ -7,15 +7,19 @@ export const useSyncStore = create((set, get) => ({
   lastUpdate: null,
   setLastUpdate: (date) => set({ lastUpdate: date }),
   
-  syncMetrics: async () => {
+  syncMetrics: async (username) => {
+    if (!username) {
+      throw new Error('Username is required for sync');
+    }
+
     try {
       set({ isSyncing: true });
       
       // 1. Sincronizar métricas
-      await syncPosts(APP_CONFIG.USERNAME);
+      await syncPosts(username);
       
       // 2. Obtener datos actualizados
-      const data = await fetchDashboardData(APP_CONFIG.USERNAME);
+      const data = await fetchDashboardData(username);
       
       // 3. Actualizar timestamp
       if (data.posts.length > 0) {

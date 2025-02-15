@@ -30,10 +30,13 @@ import CategoryPopover from '@/components/categories/CategoryPopover';
 import SyncButton from '@/components/buttons/SyncButton';
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 import { generateInsights } from '@/services/api/insights';
+import { useAuthStore } from '@/store/auth';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 // Componente Principal
 export default function Home() {
   const router = useRouter();
+  const { user, authState } = useAuthStore();
   // Estados
   const [allPosts, setAllPosts] = useState([]);
   const [error, setError] = useState(null);
@@ -62,12 +65,19 @@ export default function Home() {
   const fetchAllData = async () => {
     setIsInitialLoading(true);
     try {
-      const data = await fetchDashboardData(APP_CONFIG.USERNAME);
+      if (!user?.username) {
+        console.log('No username available, skipping data fetch');
+        setIsInitialLoading(false);
+        return;
+      }
+      
+      console.log('Fetching data for username:', user.username);
+      const data = await fetchDashboardData(user.username);
       setAllPosts(data.posts);
       setCategories(data.categories);
       setSubcategories(data.subcategories);
 
-      // Agregar lógica para última actualización
+      // Actualizar última sincronización
       if (data.posts.length > 0) {
         const latestUpdate = data.posts.reduce((latest, post) => {
           return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
@@ -146,7 +156,7 @@ export default function Home() {
   // Función para cargar categorías
   const fetchCategoriesData = async () => {
     try {
-      const categories = await fetchCategories(APP_CONFIG.USERNAME);
+      const categories = await fetchCategories(user.username);
       console.log('Categorías recibidas:', categories); // Mantenemos el debug log
       setCategories(categories);
     } catch (err) {
@@ -160,7 +170,7 @@ export default function Home() {
   // Función para crear nueva categoría
   const handleCreateCategory = async () => {
     try {
-      const { category } = await createCategory(APP_CONFIG.USERNAME, newCategoryName);
+      const { category } = await createCategory(user.username, newCategoryName);
       setNewCategoryName('');
       fetchCategoriesData(); // Recargamos las categorías
     } catch (err) {
@@ -186,7 +196,7 @@ export default function Home() {
     );
 
     try {
-      const { post } = await assignCategoryToPost(APP_CONFIG.USERNAME, categoryId, postId);
+      const { post } = await assignCategoryToPost(user.username, categoryId, postId);
       document.body.click(); // Cerramos el popover
     } catch (err) {
       console.error('Error assigning category:', err);
@@ -204,12 +214,14 @@ export default function Home() {
 
   // Effects
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    if (user?.username) {
+      fetchAllData();
+    }
+  }, [user?.username]);
 
   const handleCreateSubcategory = async (categoryId) => {
     try {
-      const { subcategory } = await createSubcategory(APP_CONFIG.USERNAME, categoryId, newSubcategoryName);
+      const { subcategory } = await createSubcategory(user.username, categoryId, newSubcategoryName);
       setSubcategories(prev => [...prev, subcategory]);
       setNewSubcategoryName('');
     } catch (error) {
@@ -230,7 +242,7 @@ export default function Home() {
     );
 
     try {
-      const { post } = await assignSubcategoryToPost(APP_CONFIG.USERNAME, subcategoryId, postId);
+      const { post } = await assignSubcategoryToPost(user.username, subcategoryId, postId);
       document.body.click(); // Cerramos el popover
     } catch (error) {
       console.error('Error assigning subcategory:', error);
@@ -286,169 +298,178 @@ export default function Home() {
     return () => window.removeEventListener('metrics-synced', handleSync);
   }, [setLastUpdate]);
 
-  // Render
-  if (isInitialLoading) {
+  // Agregar este useEffect para manejar la redirección
+  useEffect(() => {
+    if (authState === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [authState, router]);
+
+  // Modificar la lógica de loading
+  if (authState === 'loading' || isInitialLoading) {
     return <DashboardSkeleton />;
   }
 
   if (error) return <div>Error: {error}</div>;
 
   return (
-    <main className="p-8 bg-gray-50">
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex gap-2">
-        <h1 className="text-2xl font-bold">Publicaciones</h1>
-          {/* <SyncButton
-            isSyncing={isSyncing}
-            onSync={syncAllPages}
-            lastUpdate={lastUpdate}
-          /> */}
-          {/* <Button 
-            color="secondary"
-            onPress={handleGenerateInsights}
-          >
-            Generar Insights
-          </Button> */}
-        </div>
-        
-        <PostFilters 
-          selectedTypes={selectedTypes}
-          selectedCategories={selectedCategories}
-          selectedSubcategories={selectedSubcategories}
-          categories={categories}
-          subcategories={subcategories}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onTypeChange={setSelectedTypes}
-          onCategoryChange={setSelectedCategories}
-          onSubcategoryChange={setSelectedSubcategories}
-          onSortReset={() => {
-            setSortField('published_at');
-            setSortDirection('desc');
-          }}
-        />
-      </div>
-
-      {/* Add the stats panel here, using filteredPosts */}
-      <StatsSummaryPanel posts={filteredPosts} />
-
-      <Table removeWrapper aria-label="Instagram posts table">
-        <TableHeader>
-          <TableColumn width={300}>Caption</TableColumn>
-          <TableColumn width={100}>Tipo</TableColumn>
-          <TableColumn width={200}>Categoría</TableColumn>
-          <TableColumn width={200}>Subcategoría</TableColumn>
-          {[
-            { field: 'published_at', label: 'Fecha', width: 100 },
-            { field: 'published_at', label: 'Hora', width: 80 },
-            { field: 'views', label: 'Views', width: 100 },
-            { field: 'likes', label: 'Likes', width: 100 },
-            { field: 'saves', label: 'Saves', width: 100 },
-            { field: 'shares', label: 'Shares', width: 100 },
-            { field: 'comments', label: 'Comments', width: 100 }
-          ].map(({ field, label, width }) => (
-            <TableColumn 
-              key={`${field}-${label}`}
-              width={width} 
-              align={field === 'published_at' ? 'start' : 'end'}
-              className="cursor-pointer hover:bg-gray-100"
-              onClick={() => handleSort(field)}
+    <AuthGuard>
+      <main className="p-8 bg-gray-50">
+        <div className="flex justify-between items-start mb-6">
+          <div className="flex gap-2">
+          <h1 className="text-2xl font-bold">Publicaciones</h1>
+            {/* <SyncButton
+              isSyncing={isSyncing}
+              onSync={syncAllPages}
+              lastUpdate={lastUpdate}
+            /> */}
+            {/* <Button 
+              color="secondary"
+              onPress={handleGenerateInsights}
             >
-              <div className={`flex items-center ${field === 'published_at' ? 'justify-start' : 'justify-end'} gap-1`}>
-                {label}
-                {sortField === field && (
-                  <span className="text-xs">
-                    {sortDirection === 'desc' ? '↓' : '↑'}
-                  </span>
-                )}
-              </div>
-            </TableColumn>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {isSyncing ? (
-            Array(APP_CONFIG.POSTS_PER_PAGE).fill(null).map((_, index) => (
-              <TableRow key={index}>
-                {Array(11).fill(null).map((_, cellIndex) => (
-                  <TableCell key={cellIndex}>
-                    <Skeleton className="h-4 w-full rounded" />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            sortedAndPaginatedPosts.map(post => (
-              <TableRow 
-                key={post.id} 
-                className="cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={() => router.push(`/post/${post.id}`)}
-              >
-                <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
-                <TableCell>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    getMediaTypeStyle(post.media_type)
-                  }`}>
-                    {MEDIA_TYPES.find(type => type.value === post.media_type)?.label || post.media_type}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <CategoryPopover
-                    category={categories.find(c => c.id === post.category_id)}
-                    categories={categories}
-                    onCreateCategory={() => handleCreateCategory()}
-                    onAssignCategory={(categoryId) => handleAssignCategory(post.id, categoryId)}
-                    newCategoryName={newCategoryName}
-                    onNewCategoryNameChange={(value) => setNewCategoryName(value)}
-                    type="categoría"
-                  />
-                </TableCell>
-                <TableCell>
-                  <CategoryPopover
-                    category={subcategories.find(s => s.id === post.subcategory_id)}
-                    categories={subcategories.filter(sub => sub.category_id === post.category_id)}
-                    onCreateCategory={() => handleCreateSubcategory(post.category_id)}
-                    onAssignCategory={(subcategoryId) => handleAssignSubcategory(post.id, subcategoryId)}
-                    newCategoryName={newSubcategoryName}
-                    onNewCategoryNameChange={(value) => setNewSubcategoryName(value)}
-                    parentCategory={categories.find(c => c.id === post.category_id)}
-                    type="subcategoría"
-                    className="min-w-[200px]"
-                  />
-                </TableCell>
-                <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
-                <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
-                <TableCell align="right">{post.views?.toLocaleString()}</TableCell>
-                <TableCell align="right">{post.likes?.toLocaleString()}</TableCell>
-                <TableCell align="right">{post.saves?.toLocaleString()}</TableCell>
-                <TableCell align="right">{post.shares?.toLocaleString()}</TableCell>
-                <TableCell align="right">{post.comments?.toLocaleString()}</TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+              Generar Insights
+            </Button> */}
+          </div>
+          
+          <PostFilters 
+            selectedTypes={selectedTypes}
+            selectedCategories={selectedCategories}
+            selectedSubcategories={selectedSubcategories}
+            categories={categories}
+            subcategories={subcategories}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onTypeChange={setSelectedTypes}
+            onCategoryChange={setSelectedCategories}
+            onSubcategoryChange={setSelectedSubcategories}
+            onSortReset={() => {
+              setSortField('published_at');
+              setSortDirection('desc');
+            }}
+          />
+        </div>
 
-      <div className="mt-4 flex items-center justify-between">
-        <Button
-          color="primary"
-          onPress={() => handlePageChange(Math.max(1, page - 1))}
-          isDisabled={page === 1}
-        >
-          Anterior
-        </Button>
-        
-        <span className="text-sm text-gray-700">
-          Página {page} de {Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
-        </span>
-        
-        <Button
-          color="primary"
-          onPress={() => handlePageChange(page + 1)}
-          isDisabled={page >= Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
-        >
-          Siguiente
-        </Button>
-      </div>
-    </main>
+        {/* Add the stats panel here, using filteredPosts */}
+        <StatsSummaryPanel posts={filteredPosts} />
+
+        <Table removeWrapper aria-label="Instagram posts table">
+          <TableHeader>
+            <TableColumn width={300}>Caption</TableColumn>
+            <TableColumn width={100}>Tipo</TableColumn>
+            <TableColumn width={200}>Categoría</TableColumn>
+            <TableColumn width={200}>Subcategoría</TableColumn>
+            {[
+              { field: 'published_at', label: 'Fecha', width: 100 },
+              { field: 'published_at', label: 'Hora', width: 80 },
+              { field: 'views', label: 'Views', width: 100 },
+              { field: 'likes', label: 'Likes', width: 100 },
+              { field: 'saves', label: 'Saves', width: 100 },
+              { field: 'shares', label: 'Shares', width: 100 },
+              { field: 'comments', label: 'Comments', width: 100 }
+            ].map(({ field, label, width }) => (
+              <TableColumn 
+                key={`${field}-${label}`}
+                width={width} 
+                align={field === 'published_at' ? 'start' : 'end'}
+                className="cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort(field)}
+              >
+                <div className={`flex items-center ${field === 'published_at' ? 'justify-start' : 'justify-end'} gap-1`}>
+                  {label}
+                  {sortField === field && (
+                    <span className="text-xs">
+                      {sortDirection === 'desc' ? '↓' : '↑'}
+                    </span>
+                  )}
+                </div>
+              </TableColumn>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {isSyncing ? (
+              Array(APP_CONFIG.POSTS_PER_PAGE).fill(null).map((_, index) => (
+                <TableRow key={index}>
+                  {Array(11).fill(null).map((_, cellIndex) => (
+                    <TableCell key={cellIndex}>
+                      <Skeleton className="h-4 w-full rounded" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              sortedAndPaginatedPosts.map(post => (
+                <TableRow 
+                  key={post.id} 
+                  className="cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => router.push(`/post/${post.id}`)}
+                >
+                  <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      getMediaTypeStyle(post.media_type)
+                    }`}>
+                      {MEDIA_TYPES.find(type => type.value === post.media_type)?.label || post.media_type}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <CategoryPopover
+                      category={categories.find(c => c.id === post.category_id)}
+                      categories={categories}
+                      onCreateCategory={() => handleCreateCategory()}
+                      onAssignCategory={(categoryId) => handleAssignCategory(post.id, categoryId)}
+                      newCategoryName={newCategoryName}
+                      onNewCategoryNameChange={(value) => setNewCategoryName(value)}
+                      type="categoría"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <CategoryPopover
+                      category={subcategories.find(s => s.id === post.subcategory_id)}
+                      categories={subcategories.filter(sub => sub.category_id === post.category_id)}
+                      onCreateCategory={() => handleCreateSubcategory(post.category_id)}
+                      onAssignCategory={(subcategoryId) => handleAssignSubcategory(post.id, subcategoryId)}
+                      newCategoryName={newSubcategoryName}
+                      onNewCategoryNameChange={(value) => setNewSubcategoryName(value)}
+                      parentCategory={categories.find(c => c.id === post.category_id)}
+                      type="subcategoría"
+                      className="min-w-[200px]"
+                    />
+                  </TableCell>
+                  <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
+                  <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
+                  <TableCell align="right">{post.views?.toLocaleString()}</TableCell>
+                  <TableCell align="right">{post.likes?.toLocaleString()}</TableCell>
+                  <TableCell align="right">{post.saves?.toLocaleString()}</TableCell>
+                  <TableCell align="right">{post.shares?.toLocaleString()}</TableCell>
+                  <TableCell align="right">{post.comments?.toLocaleString()}</TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+
+        <div className="mt-4 flex items-center justify-between">
+          <Button
+            color="primary"
+            onPress={() => handlePageChange(Math.max(1, page - 1))}
+            isDisabled={page === 1}
+          >
+            Anterior
+          </Button>
+          
+          <span className="text-sm text-gray-700">
+            Página {page} de {Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
+          </span>
+          
+          <Button
+            color="primary"
+            onPress={() => handlePageChange(page + 1)}
+            isDisabled={page >= Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
+          >
+            Siguiente
+          </Button>
+        </div>
+      </main>
+    </AuthGuard>
   );
 }

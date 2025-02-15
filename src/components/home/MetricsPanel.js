@@ -39,7 +39,7 @@ export default function MetricsPanel({ timeRange, metrics }) {
         diff: calculateDiff(currentPeriod.totalPosts, previousPeriod.totalPosts),
         baseValue: previousPeriod.totalPosts
       },
-      vsHistorical: apiTimeRange !== 'all' ? {
+      vsHistorical: apiTimeRange !== 'all' && metrics?.[apiTimeRange]?.historicalAvg ? {
         diff: calculateDiff(currentPeriod.totalPosts, metrics[apiTimeRange].historicalAvg),
         baseValue: Math.round(metrics[apiTimeRange].historicalAvg * 10) / 10
       } : null,

@@ -10,6 +10,7 @@ import { fetchDashboardData } from '@/services/api/posts';
 import { APP_CONFIG } from '@/config/app';
 import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
+import { useAuthStore } from '@/store/auth';
 
 // Importar dinámicamente los componentes que usan ApexCharts
 const PublishingVolume = dynamic(
@@ -33,23 +34,22 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
+  const { user, authState } = useAuthStore();
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        console.log('[HomePage] Iniciando carga de datos...');
         
+        if (!user?.username) {
+          console.log('No username available, skipping data load');
+          return;
+        }
+
         const [dashboardData, metricsData] = await Promise.all([
-          fetchDashboardData(APP_CONFIG.USERNAME),
+          fetchDashboardData(user.username),
           getDashboardMetrics()
         ]);
-
-        console.log('[HomePage] Datos recibidos:', {
-          postsCount: dashboardData.posts.length,
-          hasMetrics: !!metricsData.metrics,
-          hasInsights: !!metricsData.insights
-        });
 
         setPosts(dashboardData.posts);
         setCategories(dashboardData.categories);
@@ -57,10 +57,8 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
         setMetrics(metricsData.metrics);
         
         if (metricsData.insights) {
-          console.log('[HomePage] Insights encontrados, actualizando estado');
           setInsights(metricsData.insights);
         } else {
-          console.log('[HomePage] No hay insights, iniciando generación en segundo plano');
           handleGenerateInsights();
         }
       } catch (error) {
@@ -74,13 +72,17 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     if (!initialPosts) {
       loadData();
     }
-  }, [initialPosts]);
+  }, [initialPosts, user?.username]);
 
   // Agregar el listener para el evento de sincronización
   useEffect(() => {
     const handleSync = async (event) => {
       try {
-        console.log('[HomePage] Recibiendo datos sincronizados...');
+        if (!user?.username) {
+          console.log('No username available for sync');
+          return;
+        }
+
         const data = event.detail;
         
         // Actualizar datos básicos
@@ -90,7 +92,6 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
         
         // Recargar métricas del dashboard
         const metricsData = await getDashboardMetrics();
-        console.log('[HomePage] Actualizando métricas y insights');
         
         if (metricsData.metrics) {
           setMetrics(metricsData.metrics);
@@ -98,20 +99,20 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
         
         // Mantener la lógica existente de insights
         if (metricsData.insights) {
-          console.log('[HomePage] Insights encontrados, actualizando estado');
+          console.log('Insights encontrados, actualizando estado');
           setInsights(metricsData.insights);
         } else {
-          console.log('[HomePage] No hay insights, iniciando generación en segundo plano');
+          console.log('No hay insights, iniciando generación en segundo plano');
           handleGenerateInsights();
         }
       } catch (error) {
-        console.error('[HomePage] Error en sincronización:', error);
+        console.error('Error en sincronización:', error);
       }
     };
 
     window.addEventListener('metrics-synced', handleSync);
     return () => window.removeEventListener('metrics-synced', handleSync);
-  }, []); // Sin dependencias ya que solo usamos setters
+  }, [user?.username]);
 
   // Convertir el timeRange del UI al formato de la API
   const getApiTimeRange = (uiTimeRange) => {
@@ -149,11 +150,10 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     try {
       const data = await getDashboardInsights(['7d', '30d', 'all']);
       if (data.insights) {
-        console.log('[HomePage] Insights generados correctamente');
         setInsights(data.insights);
       }
     } catch (error) {
-      console.error('[HomePage] Error generando insights:', error);
+      console.error('Error generando insights:', error);
       setError('Error generating insights');
     } finally {
       setIsGeneratingInsights(false);

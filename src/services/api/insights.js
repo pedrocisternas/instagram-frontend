@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '@/config/app';
+import { useAuthStore } from '@/store/auth';
 
 const API_BASE_URL = APP_CONFIG.API_URL;
 
@@ -89,8 +90,14 @@ export async function checkPostInsights(postId) {
 
 export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
   try {
+    const { user } = useAuthStore.getState(); // Obtener el usuario del store
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
     const queryParams = new URLSearchParams();
-    queryParams.append('username', APP_CONFIG.USERNAME);
+    queryParams.append('username', user.username);
     timeRanges.forEach(range => queryParams.append('timeRanges[]', range));
 
     const response = await fetch(
@@ -114,8 +121,14 @@ export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
 
 export async function getDashboardMetrics() {
   try {
+    const { user } = useAuthStore.getState(); // Obtener el usuario del store
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
     const response = await fetch(
-      `${API_BASE_URL}/api/insights/dashboard/metrics?username=${APP_CONFIG.USERNAME}`
+      `${API_BASE_URL}/api/insights/dashboard/metrics?username=${user.username}`
     );
     
     if (!response.ok) {
@@ -129,10 +142,6 @@ export async function getDashboardMetrics() {
       throw new Error(data.error || 'Error getting dashboard metrics');
     }
 
-    // La respuesta debería incluir:
-    // - metrics: métricas por período
-    // - insights: insights procesados por período
-    // - needs_update: flag para regeneración
     return data;
   } catch (error) {
     console.error('Service: Error getting dashboard metrics:', error);

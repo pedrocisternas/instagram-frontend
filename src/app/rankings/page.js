@@ -77,7 +77,7 @@ export default function RankingsPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await fetchDashboardData(APP_CONFIG.USERNAME);
+        const data = await fetchDashboardData();
         setPosts(data.posts);
         setCategories(data.categories);
         setSubcategories(data.subcategories);

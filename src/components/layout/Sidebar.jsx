@@ -6,12 +6,15 @@ import {
   HomeIcon, 
   ChartBarIcon,
   Square3Stack3DIcon,
-  AdjustmentsHorizontalIcon
+  AdjustmentsHorizontalIcon,
+  ArrowLeftOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { APP_CONFIG } from '@/config/app';
 import Image from 'next/image';
 import CompactSyncButton from '@/components/buttons/CompactSyncButton'
+import AuthStatus from '@/components/auth/AuthStatus';
 import { useSyncStore } from '@/store/sync';
+import { useAuthStore } from '@/store/auth';
 
 const menuItems = [
   {
@@ -34,16 +37,26 @@ const menuItems = [
     icon: AdjustmentsHorizontalIcon,
     path: '/home',
   },
+  {
+    name: 'Login',
+    icon: ArrowLeftOnRectangleIcon,
+    path: '/login',
+  },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { isSyncing, syncMetrics, lastUpdate } = useSyncStore();
+  const { user, authState } = useAuthStore();
 
   const handleSync = async () => {
+    if (!user?.id) {
+      console.error('No user ID available for sync');
+      return;
+    }
+
     try {
-      const data = await syncMetrics();
-      // Emitir un evento personalizado para notificar a las páginas
+      const data = await syncMetrics(user.id);
       const syncEvent = new CustomEvent('metrics-synced', { detail: data });
       window.dispatchEvent(syncEvent);
     } catch (error) {
@@ -58,7 +71,7 @@ export default function Sidebar() {
         <div className="p-4 border-b border-gray-200">
           <div className="w-10 h-10 rounded-full overflow-hidden">
             <Image
-              src="/images/profile.jpg"
+              src={user?.profile_picture || "/images/profile.jpg"}
               alt="Profile picture"
               width={40}
               height={40}
@@ -90,13 +103,16 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Sync Button al final */}
-        <div className="p-4 border-t border-gray-200">
-          <CompactSyncButton
-            isSyncing={isSyncing}
-            onSync={handleSync}
-            lastUpdate={lastUpdate}
-          />
+        {/* Botones de acción en el footer */}
+        <div className="p-4 border-t border-gray-200 space-y-4">
+            <CompactSyncButton
+              isSyncing={isSyncing}
+              onSync={handleSync}
+              lastUpdate={lastUpdate}
+              />
+          {/* {authState === 'authenticated' && (
+          )} */}
+          <AuthStatus />
         </div>
       </div>
     </div>

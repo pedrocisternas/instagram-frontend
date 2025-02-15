@@ -1,55 +1,96 @@
 import { APP_CONFIG } from '@/config/app';
+import { useAuthStore } from '@/store/auth';
 
 const API_BASE_URL = APP_CONFIG.API_URL;
 
-export async function fetchPosts(username) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/posts?username=${username}`
-  );
-  if (!response.ok) {
-    throw new Error('Error fetching posts');
+export async function fetchPosts() {
+  try {
+    const { user } = useAuthStore.getState();
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/posts?username=${user.username}`
+    );
+    if (!response.ok) {
+      throw new Error('Error fetching posts');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Service: Error fetching posts:', error);
+    throw error;
   }
-  return response.json();
 }
 
-export async function syncPosts(username) {
-  const response = await fetch(`${API_BASE_URL}/api/posts/sync`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username })
-  });
-  
-  if (!response.ok) {
-    throw new Error('Sync failed');
+export async function syncPosts() {
+  try {
+    const { user } = useAuthStore.getState();
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/posts/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user.username })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Sync failed');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Service: Error syncing posts:', error);
+    throw error;
   }
-  return response.json();
 }
 
-export async function fetchDashboardData(username) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/posts/dashboard?username=${username}`
-  );
-  if (!response.ok) {
-    throw new Error('Error fetching dashboard data');
+export async function fetchDashboardData() {
+  try {
+    const { user } = useAuthStore.getState();
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/posts/dashboard?username=${user.username}`
+    );
+    if (!response.ok) {
+      throw new Error('Error fetching dashboard data');
+    }
+    return response.json();
+  } catch (error) {
+    console.error('Service: Error fetching dashboard data:', error);
+    throw error;
   }
-  return response.json();
 }
 
 // Función para obtener los detalles de un post
-export async function fetchPostDetails(postId, username) {
-  if (!postId) throw new Error('Post ID is required');
-  if (!username) throw new Error('Username is required');
-
-  const response = await fetch(
-    `${API_BASE_URL}/api/posts/${postId}/details?username=${username}`
-  );
-  
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('Post not found');
+export async function fetchPostDetails(postId) {
+  try {
+    const { user } = useAuthStore.getState();
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
     }
-    throw new Error('Error fetching post details');
+    if (!postId) {
+      throw new Error('Post ID is required');
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/posts/${postId}/details?username=${user.username}`
+    );
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Post not found');
+      }
+      throw new Error('Error fetching post details');
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error('Service: Error fetching post details:', error);
+    throw error;
   }
-  
-  return response.json();
 }
