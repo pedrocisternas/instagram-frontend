@@ -170,7 +170,7 @@ export default function Home() {
   // Función para crear nueva categoría
   const handleCreateCategory = async () => {
     try {
-      const { category } = await createCategory(user.username, newCategoryName);
+      const { category } = await createCategory(newCategoryName);
       setNewCategoryName('');
       fetchCategoriesData(); // Recargamos las categorías
     } catch (err) {
@@ -185,22 +185,22 @@ export default function Home() {
     // Actualización optimista en el frontend
     setAllPosts(currentPosts => 
       currentPosts.map(post => 
-        post.id === postId 
+        post.id === postId  // Usar id de la base de datos
           ? { 
               ...post, 
               category_id: categoryId,
-              subcategory_id: null // Limpiamos la subcategoría cuando cambia la categoría
+              subcategory_id: null
             }
           : post
       )
     );
 
     try {
-      const { post } = await assignCategoryToPost(user.username, categoryId, postId);
-      document.body.click(); // Cerramos el popover
+      const { post } = await assignCategoryToPost(categoryId, postId);
+      document.body.click();
     } catch (err) {
       console.error('Error assigning category:', err);
-      setAllPosts(previousPosts); // Revertimos en caso de error
+      setAllPosts(previousPosts);
     }
   };
 
@@ -221,7 +221,7 @@ export default function Home() {
 
   const handleCreateSubcategory = async (categoryId) => {
     try {
-      const { subcategory } = await createSubcategory(user.username, categoryId, newSubcategoryName);
+      const { subcategory } = await createSubcategory(categoryId, newSubcategoryName);
       setSubcategories(prev => [...prev, subcategory]);
       setNewSubcategoryName('');
     } catch (error) {
@@ -242,7 +242,7 @@ export default function Home() {
     );
 
     try {
-      const { post } = await assignSubcategoryToPost(user.username, subcategoryId, postId);
+      const { post } = await assignSubcategoryToPost(subcategoryId, postId);
       document.body.click(); // Cerramos el popover
     } catch (error) {
       console.error('Error assigning subcategory:', error);

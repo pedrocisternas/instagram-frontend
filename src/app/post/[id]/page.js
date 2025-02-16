@@ -57,7 +57,7 @@ export default function PostPage() {
     }));
 
     try {
-      const { post } = await assignCategoryToPost(APP_CONFIG.USERNAME, categoryId, details.post.id);
+      const { post } = await assignCategoryToPost(categoryId, details.post.id);
       document.body.click();
     } catch (error) {
       console.error('Error assigning category:', error);
@@ -76,7 +76,7 @@ export default function PostPage() {
     }));
 
     try {
-      const { post } = await assignSubcategoryToPost(APP_CONFIG.USERNAME, subcategoryId, details.post.id);
+      const { post } = await assignSubcategoryToPost(subcategoryId, details.post.id);
       document.body.click();
     } catch (error) {
       console.error('Error assigning subcategory:', error);
@@ -104,7 +104,7 @@ export default function PostPage() {
 
       try {
         setLoading(true);
-        const postData = await fetchPostDetails(id, APP_CONFIG.USERNAME);
+        const postData = await fetchPostDetails(id);
         setDetails(postData);
 
         if (postData?.post?.id) {

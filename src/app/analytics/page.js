@@ -2,19 +2,16 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Button } from "@heroui/react";
 import { useSyncStore } from '@/store/sync';
 import { fetchPosts } from '@/services/api/posts';
 import { 
   fetchCategories,
   fetchSubcategories 
 } from '@/services/api/categories';
-import { APP_CONFIG } from '@/config/app';
 import { formatDate, formatTime } from '@/utils/dateFormatters';
 import PostFilters from '@/components/filters/PostFilters';
 import { useRouter } from 'next/navigation';
 import AnalyticsSkeleton from '@/components/analytics/AnalyticsSkeleton';
-import SyncButton from '@/components/buttons/SyncButton';
 import { useAuthStore } from '@/store/auth';
 
 // Importamos ApexCharts de forma dinámica para evitar errores de SSR
@@ -76,7 +73,7 @@ export default function AnalyticsDashboard() {
         setAllPosts([]);
         return;
       }
-      const data = await fetchPosts(user.username);
+      const data = await fetchPosts();
       setAllPosts(data.posts);
       if (data.posts.length > 0) {
         const latestUpdate = data.posts.reduce((latest, post) => {
@@ -98,7 +95,7 @@ export default function AnalyticsDashboard() {
         setCategories([]);
         return;
       }
-      const categories = await fetchCategories(user.username);
+      const categories = await fetchCategories();
       setCategories(categories);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -349,7 +346,7 @@ export default function AnalyticsDashboard() {
       
       try {
         const promises = categories.map(category => 
-          fetchSubcategories(user.username, category.id)
+          fetchSubcategories(category.id)
         );
         
         const results = await Promise.all(promises);

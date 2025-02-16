@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardBody, Select, SelectItem } from "@heroui/react";
 import { fetchDashboardData } from '@/services/api/posts';
-import { APP_CONFIG } from '@/config/app';
 import RankingsList from '@/components/rankings/RankingsList';
 import RankingsSkeleton from '@/components/rankings/RankingsSkeleton';
 

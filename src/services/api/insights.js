@@ -5,6 +5,12 @@ const API_BASE_URL = APP_CONFIG.API_URL;
 
 export async function generateInsights(posts) {
   try {
+    const { user } = useAuthStore.getState();
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
     console.log('Service: Preparando datos para enviar');
     const postIds = posts.map(post => post.id);
     
@@ -13,7 +19,7 @@ export async function generateInsights(posts) {
       muestra: postIds.slice(0, 5)
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/insights/generate?username=${APP_CONFIG.USERNAME}`, {
+    const response = await fetch(`${API_BASE_URL}/api/insights/generate?username=${user.username}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ postIds })
@@ -33,8 +39,14 @@ export async function generateInsights(posts) {
 
 export async function getPostInsights(postId) {
   try {
+    const { user } = useAuthStore.getState();
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
     const response = await fetch(
-      `${API_BASE_URL}/api/insights/generate/post/${postId}?username=${APP_CONFIG.USERNAME}`
+      `${API_BASE_URL}/api/insights/generate/post/${postId}?username=${user.username}`
     );
     
     if (!response.ok) {
@@ -43,7 +55,6 @@ export async function getPostInsights(postId) {
     }
     const data = await response.json();
     
-    // Asegurarnos de que el análisis tenga la estructura correcta
     const analysis = data.analysis ? (
       typeof data.analysis === 'string' ? JSON.parse(data.analysis) : data.analysis
     ) : null;
@@ -61,18 +72,23 @@ export async function getPostInsights(postId) {
 
 export async function checkPostInsights(postId) {
   try {
+    const { user } = useAuthStore.getState();
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
     const response = await fetch(
-      `${API_BASE_URL}/api/insights/check/${postId}?username=${APP_CONFIG.USERNAME}`
+      `${API_BASE_URL}/api/insights/check/${postId}?username=${user.username}`
     );
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Service - Check Insights - Error en response:', errorData);
-      throw new Error(errorData.details || 'Error checking insights');
-    }
     const data = await response.json();
     
-    // Asegurarnos de que el análisis tenga la estructura correcta
+    if (!response.ok || !data.success) {
+      console.error('Service - Check Insights - Error en response:', data);
+      throw new Error(data.details || data.error || 'Error checking insights');
+    }
+    
     const analysis = data.analysis ? (
       typeof data.analysis === 'string' ? JSON.parse(data.analysis) : data.analysis
     ) : null;
@@ -90,7 +106,7 @@ export async function checkPostInsights(postId) {
 
 export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
   try {
-    const { user } = useAuthStore.getState(); // Obtener el usuario del store
+    const { user } = useAuthStore.getState();
     
     if (!user?.username) {
       throw new Error('No authenticated user found');
@@ -121,7 +137,7 @@ export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
 
 export async function getDashboardMetrics() {
   try {
-    const { user } = useAuthStore.getState(); // Obtener el usuario del store
+    const { user } = useAuthStore.getState();
     
     if (!user?.username) {
       throw new Error('No authenticated user found');
