@@ -11,6 +11,8 @@ import { APP_CONFIG } from '@/config/app';
 import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
 import { useAuthStore } from '@/store/auth';
+import { useRouter } from 'next/navigation';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 // Importar dinámicamente los componentes que usan ApexCharts
 const PublishingVolume = dynamic(
@@ -24,6 +26,7 @@ const PublishingMap = dynamic(
 );
 
 export default function HomePage({ initialPosts, initialCategories, initialSubcategories }) {
+  const router = useRouter();
   const [timeRange, setTimeRange] = useState("30days");
   const [selectedContent, setSelectedContent] = useState(null);
   const [posts, setPosts] = useState(initialPosts || []);
@@ -114,6 +117,13 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     return () => window.removeEventListener('metrics-synced', handleSync);
   }, [user?.username]);
 
+  // Agregar este useEffect para manejar la redirección
+  useEffect(() => {
+    if (authState === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [authState, router]);
+
   // Convertir el timeRange del UI al formato de la API
   const getApiTimeRange = (uiTimeRange) => {
     switch (uiTimeRange) {
@@ -160,7 +170,7 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     }
   };
 
-  if (isLoading) {
+  if (authState === 'loading' || isLoading) {
     return <HomeSkeleton />;
   }
 
@@ -169,86 +179,88 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   }
 
   return (
-    <main className="p-8 bg-gray-50">
-      {/* Contenedor de tabs y botón */}
-      <div className="mb-6 flex justify-between items-center">
-        <Tabs 
-          selectedKey={timeRange} 
-          onSelectionChange={setTimeRange}
-          className="justify-center"
-          size="md"
-          variant="solid"
-          color="secondary"
-          classNames={{
-            tabList: "max-w-[500px]"
-          }}
-        >
-          <Tab key="7days" title="Últimos 7 días" />
-          <Tab key="30days" title="Últimos 30 días" />
-          <Tab key="alltime" title="Todo el tiempo" />
-        </Tabs>
+    <AuthGuard>
+      <main className="p-8 bg-gray-50">
+        {/* Contenedor de tabs y botón */}
+        <div className="mb-6 flex justify-between items-center">
+          <Tabs 
+            selectedKey={timeRange} 
+            onSelectionChange={setTimeRange}
+            className="justify-center"
+            size="md"
+            variant="solid"
+            color="secondary"
+            classNames={{
+              tabList: "max-w-[500px]"
+            }}
+          >
+            <Tab key="7days" title="Últimos 7 días" />
+            <Tab key="30days" title="Últimos 30 días" />
+            <Tab key="alltime" title="Todo el tiempo" />
+          </Tabs>
 
-        <Button
-          color="primary"
-          onClick={handleGenerateInsights}
-          isLoading={isGeneratingInsights}
-        >
-          {isGeneratingInsights ? 'Generando...' : 'Generar Insights'}
-        </Button>
-      </div>
+          <Button
+            color="primary"
+            onClick={handleGenerateInsights}
+            isLoading={isGeneratingInsights}
+          >
+            {isGeneratingInsights ? 'Generando...' : 'Generar Insights'}
+          </Button>
+        </div>
 
-      {/* Contenedor principal */}
-      <div className="grid grid-cols-5 gap-6 mb-8">
-        {/* Contenedor izquierdo (3/5) */}
-        <div className="col-span-3 space-y-6">
-          {/* Panel superior */}
-          <div>
-            <MetricsPanel 
-              timeRange={timeRange} 
-              metrics={metrics}
-            />
+        {/* Contenedor principal */}
+        <div className="grid grid-cols-5 gap-6 mb-8">
+          {/* Contenedor izquierdo (3/5) */}
+          <div className="col-span-3 space-y-6">
+            {/* Panel superior */}
+            <div>
+              <MetricsPanel 
+                timeRange={timeRange} 
+                metrics={metrics}
+              />
+            </div>
+            
+            {/* Panel inferior dividido */}
+            <div className="grid grid-cols-6 gap-6">
+              {/* Lista de contenido top */}
+              <div className="col-span-3">
+                <TopContentList 
+                  posts={filteredPosts}
+                  timeRange={timeRange}
+                  onContentSelect={setSelectedContent}
+                  categories={categories}
+                  subcategories={subcategories}
+                />
+              </div>
+              {/* Preview del contenido */}
+              <div className="col-span-3">
+                <InsightsPanel 
+                  insights={insights} 
+                  currentTimeRange={getApiTimeRange(timeRange)} 
+                />
+              </div>
+            </div>
           </div>
-          
-          {/* Panel inferior dividido */}
-          <div className="grid grid-cols-6 gap-6">
-            {/* Lista de contenido top */}
-            <div className="col-span-3">
-              <TopContentList 
-                posts={filteredPosts}
+
+          {/* Contenedor derecho (2/5) */}
+          <div className="col-span-2 space-y-6">
+            {/* Gráfico de distribución */}
+            <ContentDistribution 
+              posts={filteredPosts}
+              categories={categories}
+            />
+            {/* Componentes de visualización de volumen */}
+            {timeRange === "alltime" ? (
+              <PublishingMap posts={posts} />
+            ) : (
+              <PublishingVolume 
+                posts={posts}
                 timeRange={timeRange}
-                onContentSelect={setSelectedContent}
-                categories={categories}
-                subcategories={subcategories}
               />
-            </div>
-            {/* Preview del contenido */}
-            <div className="col-span-3">
-              <InsightsPanel 
-                insights={insights} 
-                currentTimeRange={getApiTimeRange(timeRange)} 
-              />
-            </div>
+            )}
           </div>
         </div>
-
-        {/* Contenedor derecho (2/5) */}
-        <div className="col-span-2 space-y-6">
-          {/* Gráfico de distribución */}
-          <ContentDistribution 
-            posts={filteredPosts}
-            categories={categories}
-          />
-          {/* Componentes de visualización de volumen */}
-          {timeRange === "alltime" ? (
-            <PublishingMap posts={posts} />
-          ) : (
-            <PublishingVolume 
-              posts={posts}
-              timeRange={timeRange}
-            />
-          )}
-        </div>
-      </div>
-    </main>
+      </main>
+    </AuthGuard>
   );
 }

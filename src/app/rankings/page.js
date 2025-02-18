@@ -4,6 +4,9 @@ import { Card, CardBody, Select, SelectItem } from "@heroui/react";
 import { fetchDashboardData } from '@/services/api/posts';
 import RankingsList from '@/components/rankings/RankingsList';
 import RankingsSkeleton from '@/components/rankings/RankingsSkeleton';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/auth';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 const METRICS = [
   { key: 'views', label: 'Views' },
@@ -14,6 +17,8 @@ const METRICS = [
 ];
 
 export default function RankingsPage() {
+  const router = useRouter();
+  const { user, authState } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -72,11 +77,22 @@ export default function RankingsPage() {
       .sort((a, b) => b.metricValue - a.metricValue);
   }, [subcategories, posts, categories, selectedMetric]);
 
+  // Agregar este useEffect para manejar la redirección
+  useEffect(() => {
+    if (authState === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [authState, router]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await fetchDashboardData();
+        if (!user?.username) {
+          console.log('No username available, skipping data load');
+          return;
+        }
+        const data = await fetchDashboardData(user.username);
         setPosts(data.posts);
         setCategories(data.categories);
         setSubcategories(data.subcategories);
@@ -88,8 +104,10 @@ export default function RankingsPage() {
       }
     };
 
-    loadData();
-  }, []);
+    if (user?.username) {
+      loadData();
+    }
+  }, [user?.username]);
 
   // Agregar el listener para el evento de sincronización
   useEffect(() => {
@@ -108,40 +126,44 @@ export default function RankingsPage() {
     return () => window.removeEventListener('metrics-synced', handleSync);
   }, []); // Sin dependencias ya que solo usamos setters
 
-  if (loading) return <RankingsSkeleton />;
+  if (authState === 'loading' || loading) {
+    return <RankingsSkeleton />;
+  }
   if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
 
   return (
-    <main className="p-4">
-      <div className="container mx-auto max-w-2xl">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Rankings por subcategoría</h1>
-            {/* <SyncButton
-              isSyncing={isSyncing}
-              onSync={syncAllData}
-              lastUpdate={lastUpdate}
-            /> */}
+    <AuthGuard>
+      <main className="p-4">
+        <div className="container mx-auto max-w-2xl">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">Rankings por subcategoría</h1>
+              {/* <SyncButton
+                isSyncing={isSyncing}
+                onSync={syncAllData}
+                lastUpdate={lastUpdate}
+              /> */}
+            </div>
+            <Select 
+              defaultSelectedKeys={['views']}
+              value={selectedMetric}
+              onChange={(e) => setSelectedMetric(e.target.value)}
+              className="w-32"
+            >
+              {METRICS.map(metric => (
+                <SelectItem key={metric.key} value={metric.key}>
+                  {metric.label}
+                </SelectItem>
+              ))}
+            </Select>
           </div>
-          <Select 
-            defaultSelectedKeys={['views']}
-            value={selectedMetric}
-            onChange={(e) => setSelectedMetric(e.target.value)}
-            className="w-32"
-          >
-            {METRICS.map(metric => (
-              <SelectItem key={metric.key} value={metric.key}>
-                {metric.label}
-              </SelectItem>
-            ))}
-          </Select>
+          <Card>
+            <CardBody>
+              <RankingsList items={subcategoryMetrics} />
+            </CardBody>
+          </Card>
         </div>
-        <Card>
-          <CardBody>
-            <RankingsList items={subcategoryMetrics} />
-          </CardBody>
-        </Card>
-      </div>
-    </main>
+      </main>
+    </AuthGuard>
   );
 }

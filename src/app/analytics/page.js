@@ -13,6 +13,7 @@ import PostFilters from '@/components/filters/PostFilters';
 import { useRouter } from 'next/navigation';
 import AnalyticsSkeleton from '@/components/analytics/AnalyticsSkeleton';
 import { useAuthStore } from '@/store/auth';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 
 // Importamos ApexCharts de forma dinámica para evitar errores de SSR
 const Chart = dynamic(() => import('react-apexcharts'), { ssr: false });
@@ -380,49 +381,62 @@ export default function AnalyticsDashboard() {
     return () => window.removeEventListener('metrics-synced', handleSync);
   }, [setLastUpdate]);
 
-  if (loading) return <AnalyticsSkeleton />;
+  // Agregar este useEffect para manejar la redirección
+  useEffect(() => {
+    if (authState === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [authState, router]);
+
+  // Modificar la lógica de loading
+  if (authState === 'loading' || loading) {
+    return <AnalyticsSkeleton />;
+  }
+
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
   if (!chartData || chartData.length === 0) return <div className="p-8">No hay datos disponibles</div>;
 
   return (
-    <main className="p-8 bg-gray-50">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Analítica</h1>
-          {/* <SyncButton
-            isSyncing={isSyncing}
-            onSync={syncAllData}
-            lastUpdate={lastUpdate}
-          /> */}
+    <AuthGuard>
+      <main className="p-8 bg-gray-50">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Analítica</h1>
+            {/* <SyncButton
+              isSyncing={isSyncing}
+              onSync={syncAllData}
+              lastUpdate={lastUpdate}
+            /> */}
+          </div>
+          
+          <PostFilters 
+            selectedTypes={selectedTypes}
+            selectedCategories={selectedCategories}
+            selectedSubcategories={selectedSubcategories}
+            categories={categories}
+            subcategories={subcategories}
+            sortField={sortField}
+            sortDirection={sortDirection}
+            onTypeChange={setSelectedTypes}
+            onCategoryChange={setSelectedCategories}
+            onSubcategoryChange={setSelectedSubcategories}
+            onSortReset={() => {
+              setSortField('published_at');
+              setSortDirection('desc');
+            }}
+          />
         </div>
-        
-        <PostFilters 
-          selectedTypes={selectedTypes}
-          selectedCategories={selectedCategories}
-          selectedSubcategories={selectedSubcategories}
-          categories={categories}
-          subcategories={subcategories}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onTypeChange={setSelectedTypes}
-          onCategoryChange={setSelectedCategories}
-          onSubcategoryChange={setSelectedSubcategories}
-          onSortReset={() => {
-            setSortField('published_at');
-            setSortDirection('desc');
-          }}
-        />
-      </div>
 
-      <div className="bg-white p-6 rounded-lg shadow">
-        <Chart
-          options={chartOptions}
-          series={series}
-          type="scatter"
-          height={700}
-          width="100%"
-        />
-      </div>
-    </main>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <Chart
+            options={chartOptions}
+            series={series}
+            type="scatter"
+            height={700}
+            width="100%"
+          />
+        </div>
+      </main>
+    </AuthGuard>
   );
 }

@@ -6,10 +6,9 @@ import {
   HomeIcon, 
   ChartBarIcon,
   Square3Stack3DIcon,
-  AdjustmentsHorizontalIcon,
-  ArrowLeftOnRectangleIcon
+  ArrowLeftOnRectangleIcon,
+  DevicePhoneMobileIcon
 } from '@heroicons/react/24/outline';
-import { APP_CONFIG } from '@/config/app';
 import Image from 'next/image';
 import CompactSyncButton from '@/components/buttons/CompactSyncButton'
 import AuthStatus from '@/components/auth/AuthStatus';
@@ -18,8 +17,13 @@ import { useAuthStore } from '@/store/auth';
 
 const menuItems = [
   {
-    name: 'Posts',
+    name: 'Home',
     icon: HomeIcon,
+    path: '/home',
+  },
+  {
+    name: 'Posts',
+    icon: DevicePhoneMobileIcon,
     path: '/',
   },
   {
@@ -31,16 +35,6 @@ const menuItems = [
     name: 'Rankings',
     icon: Square3Stack3DIcon,
     path: '/rankings',
-  },
-  {
-    name: 'Home',
-    icon: AdjustmentsHorizontalIcon,
-    path: '/home',
-  },
-  {
-    name: 'Login',
-    icon: ArrowLeftOnRectangleIcon,
-    path: '/login',
   },
 ];
 

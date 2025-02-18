@@ -27,7 +27,6 @@ import PostFilters from '@/components/filters/PostFilters';
 import { APP_CONFIG } from '@/config/app';
 import { useSyncStore } from '@/store/sync';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import SyncButton from '@/components/buttons/SyncButton';
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 import { generateInsights } from '@/services/api/insights';
 import { useAuthStore } from '@/store/auth';
