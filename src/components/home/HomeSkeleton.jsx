@@ -87,7 +87,6 @@ export default function HomeSkeleton() {
           <Skeleton className="h-10 w-32" />
           <Skeleton className="h-10 w-32" />
         </div>
-        <Skeleton className="h-10 w-40" />
       </div>
 
       {/* Contenedor principal */}

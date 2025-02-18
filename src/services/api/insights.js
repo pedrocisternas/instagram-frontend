@@ -127,10 +127,10 @@ export async function getDashboardInsights(timeRanges = ['7d', '30d', 'all']) {
     const data = await response.json();
     return {
       insights: data.insights,
-      needs_update: false
+      needs_update: data.needs_update
     };
   } catch (error) {
-    console.error('Service: Error getting dashboard insights:', error);
+    console.error('[Service:getDashboardInsights] Error:', error);
     throw error;
   }
 }

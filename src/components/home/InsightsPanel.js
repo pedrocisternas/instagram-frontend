@@ -1,7 +1,26 @@
 import React from 'react';
-import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ExclamationCircleIcon, CpuChipIcon } from '@heroicons/react/24/outline';
 
-const InsightsPanel = ({ insights, currentTimeRange }) => {
+const InsightsPanel = ({ insights, currentTimeRange, isGenerating }) => {
+  // Loading state con robot giratorio
+  if (isGenerating) {
+    return (
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-4 border-b border-gray-200">
+          <h2 className="text-xl font-semibold">Insights</h2>
+        </div>
+        <div className="p-8 flex flex-col items-center justify-center space-y-4">
+          <CpuChipIcon className="w-12 h-12 text-secondary-500 animate-spin" />
+          <div className="space-y-2">
+            <div className="h-4 bg-secondary-100 rounded animate-pulse w-48"></div>
+            <div className="h-4 bg-secondary-100 rounded animate-pulse w-36"></div>
+          </div>
+          <p className="text-sm text-secondary-600">Generando insights con IA...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!insights) {
     return (
       <div className="bg-white rounded-lg shadow">

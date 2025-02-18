@@ -1,6 +1,7 @@
 import { Card, CardBody } from "@heroui/react";
 import { MEDIA_TYPES, getMediaTypeStyle } from '@/utils/mediaTypes';
 import { getCategoryStyle } from '@/utils/categoryStyles';
+import { useRouter } from 'next/navigation';
 
 const formatNumber = (number) => {
   if (!number) return '0';
@@ -26,6 +27,8 @@ export default function TopContentList({
   categories,
   subcategories
 }) {
+  const router = useRouter();
+  
   const topPosts = posts
     ?.filter(post => post.views > 0)
     .sort((a, b) => (b.views || 0) - (a.views || 0))
@@ -42,7 +45,7 @@ export default function TopContentList({
           <div
             key={post.id}
             className="h-24 p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-            onClick={() => onContentSelect(post)}
+            onClick={() => router.push(`/post/${post.id}`)}
           >
             <div className="flex justify-between gap-4 h-full">
               {/* Bloque izquierdo */}

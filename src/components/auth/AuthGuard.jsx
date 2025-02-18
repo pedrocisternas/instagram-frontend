@@ -18,9 +18,8 @@ export function AuthGuard({ children }) {
         }
     }, [authState, isAuthEnabled, router]);
 
-    // Mostramos loading mientras se verifica la autenticación o se hace la redirección
-    if (authState === AUTH_CONFIG.AUTH_STATES.LOADING || 
-        authState === AUTH_CONFIG.AUTH_STATES.UNAUTHENTICATED) {
+    // Solo mostramos loading mientras se verifica la autenticación
+    if (authState === AUTH_CONFIG.AUTH_STATES.LOADING) {
         return <div>Cargando...</div>;
     }
 

@@ -7,7 +7,6 @@ import ContentDistribution from '@/components/home/ContentDistribution';
 import InsightsPanel from '@/components/home/InsightsPanel';
 import dynamic from 'next/dynamic';
 import { fetchDashboardData } from '@/services/api/posts';
-import { APP_CONFIG } from '@/config/app';
 import { getDashboardMetrics, getDashboardInsights } from '@/services/api/insights';
 import HomeSkeleton from '@/components/home/HomeSkeleton';
 import { useAuthStore } from '@/store/auth';
@@ -34,18 +33,37 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   const [subcategories, setSubcategories] = useState(initialSubcategories || []);
   const [isLoading, setIsLoading] = useState(true);
   const [insights, setInsights] = useState(null);
-  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [error, setError] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const { user, authState } = useAuthStore();
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
 
+  // Función para cargar insights
+  const loadInsights = async () => {
+    try {
+      setIsLoadingInsights(true);
+      const insightsData = await getDashboardInsights(['7d', '30d', 'all']);
+      if (insightsData.insights) {
+        setInsights(insightsData.insights);
+      }
+    } catch (error) {
+      console.error('[HomePage] Error cargando insights:', error);
+      setError('Error loading insights');
+    } finally {
+      setIsLoadingInsights(false);
+    }
+  };
+
+  // Efecto para cargar datos iniciales
   useEffect(() => {
     const loadData = async () => {
+      if (hasLoadedInitialData) return; // Evitar cargas duplicadas
+      
       setIsLoading(true);
       try {
-        
         if (!user?.username) {
-          console.log('No username available, skipping data load');
+          console.log('[HomePage] No username available, skipping data load');
           return;
         }
 
@@ -59,11 +77,9 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
         setSubcategories(dashboardData.subcategories);
         setMetrics(metricsData.metrics);
         
-        if (metricsData.insights) {
-          setInsights(metricsData.insights);
-        } else {
-          handleGenerateInsights();
-        }
+        await loadInsights();
+        setHasLoadedInitialData(true);
+
       } catch (error) {
         console.error('[HomePage] Error loading data:', error);
         setError('Error loading data');
@@ -75,47 +91,35 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     if (!initialPosts) {
       loadData();
     }
-  }, [initialPosts, user?.username]);
+  }, [initialPosts, user?.username, hasLoadedInitialData]);
 
-  // Agregar el listener para el evento de sincronización
+  // Efecto para sincronización
   useEffect(() => {
     const handleSync = async (event) => {
       try {
-        if (!user?.username) {
-          console.log('No username available for sync');
-          return;
-        }
+        if (!user?.username || !hasLoadedInitialData) return; // Solo sincronizar después de la carga inicial
 
         const data = event.detail;
-        
-        // Actualizar datos básicos
         setPosts(data.posts);
         setCategories(data.categories);
         setSubcategories(data.subcategories);
         
-        // Recargar métricas del dashboard
-        const metricsData = await getDashboardMetrics();
+        const [metricsData] = await Promise.all([
+          getDashboardMetrics(),
+          loadInsights()
+        ]);
         
         if (metricsData.metrics) {
           setMetrics(metricsData.metrics);
         }
-        
-        // Mantener la lógica existente de insights
-        if (metricsData.insights) {
-          console.log('Insights encontrados, actualizando estado');
-          setInsights(metricsData.insights);
-        } else {
-          console.log('No hay insights, iniciando generación en segundo plano');
-          handleGenerateInsights();
-        }
       } catch (error) {
-        console.error('Error en sincronización:', error);
+        console.error('[HomePage] Error en sincronización:', error);
       }
     };
 
     window.addEventListener('metrics-synced', handleSync);
     return () => window.removeEventListener('metrics-synced', handleSync);
-  }, [user?.username]);
+  }, [user?.username, hasLoadedInitialData]);
 
   // Agregar este useEffect para manejar la redirección
   useEffect(() => {
@@ -134,7 +138,7 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
       case "alltime":
         return "all";
       default:
-        return "30d"; // Mantenemos el default
+        return "30d";
     }
   };
 
@@ -155,21 +159,6 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     }
   }, [posts, timeRange]);
 
-  const handleGenerateInsights = async () => {
-    setIsGeneratingInsights(true);
-    try {
-      const data = await getDashboardInsights(['7d', '30d', 'all']);
-      if (data.insights) {
-        setInsights(data.insights);
-      }
-    } catch (error) {
-      console.error('Error generando insights:', error);
-      setError('Error generating insights');
-    } finally {
-      setIsGeneratingInsights(false);
-    }
-  };
-
   if (authState === 'loading' || isLoading) {
     return <HomeSkeleton />;
   }
@@ -181,8 +170,8 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   return (
     <AuthGuard>
       <main className="p-8 bg-gray-50">
-        {/* Contenedor de tabs y botón */}
-        <div className="mb-6 flex justify-between items-center">
+        {/* Solo los tabs */}
+        <div className="mb-6">
           <Tabs 
             selectedKey={timeRange} 
             onSelectionChange={setTimeRange}
@@ -198,14 +187,6 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
             <Tab key="30days" title="Últimos 30 días" />
             <Tab key="alltime" title="Todo el tiempo" />
           </Tabs>
-
-          <Button
-            color="primary"
-            onClick={handleGenerateInsights}
-            isLoading={isGeneratingInsights}
-          >
-            {isGeneratingInsights ? 'Generando...' : 'Generar Insights'}
-          </Button>
         </div>
 
         {/* Contenedor principal */}
@@ -236,7 +217,8 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
               <div className="col-span-3">
                 <InsightsPanel 
                   insights={insights} 
-                  currentTimeRange={getApiTimeRange(timeRange)} 
+                  currentTimeRange={getApiTimeRange(timeRange)}
+                  isGenerating={isLoadingInsights}
                 />
               </div>
             </div>

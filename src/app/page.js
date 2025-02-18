@@ -12,7 +12,7 @@ import {
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
-import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel';
+import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel.jsx';
 import { fetchDashboardData } from '@/services/api/posts';
 import { 
   fetchCategories, 
