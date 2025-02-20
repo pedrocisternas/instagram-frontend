@@ -15,10 +15,15 @@ import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
+import { useAuthStore } from '@/store/auth';
+import PostSkeleton from '@/components/post/PostSkeleton';
 
 export default function PostPage() {
   const router = useRouter();
   const { id } = useParams();
+  const { user, authState } = useAuthStore();
+  
+  // 1. Primero, todos los estados
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -27,8 +32,7 @@ export default function PostPage() {
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
   const [needsInsightsUpdate, setNeedsInsightsUpdate] = useState(false);
   const [activeTab, setActiveTab] = useState("insights");
-  
-  // Estado unificado para todos los detalles del post
+  const [comparisonType, setComparisonType] = useState('category');
   const [details, setDetails] = useState({
     post: null,
     currentCategory: null,
@@ -38,8 +42,45 @@ export default function PostPage() {
     transcript: null
   });
 
-  // Agregar estado para el tipo de comparación
-  const [comparisonType, setComparisonType] = useState('category');
+  // 2. Efecto de autenticación - debe ser el primer useEffect
+  useEffect(() => {
+    if (authState === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [authState, router]);
+
+  // 3. Efecto de carga de datos - solo se ejecuta si hay autenticación
+  useEffect(() => {
+    const loadData = async () => {
+      if (!id || authState !== 'authenticated') return;
+
+      try {
+        setLoading(true);
+        const postData = await fetchPostDetails(id);
+        
+        if (postData) {
+          setDetails(postData);
+          
+          if (postData?.post?.id) {
+            const insightsData = await checkPostInsights(postData.post.id);
+            if (insightsData.analysis) {
+              setInsights(insightsData.analysis);
+              setInsightsGeneratedAt(insightsData.generated_at);
+              setNeedsInsightsUpdate(insightsData.needs_update);
+            } else {
+              setNeedsInsightsUpdate(true);
+            }
+          }
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id, authState]);
 
   const handleAssignCategory = async (categoryId, postId) => {
     const previousDetails = { ...details };
@@ -98,35 +139,6 @@ export default function PostPage() {
     }
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!id) return;
-
-      try {
-        setLoading(true);
-        const postData = await fetchPostDetails(id);
-        setDetails(postData);
-
-        if (postData?.post?.id) {
-          const insightsData = await checkPostInsights(postData.post.id);
-          if (insightsData.analysis) {
-            setInsights(insightsData.analysis);
-            setInsightsGeneratedAt(insightsData.generated_at);
-            setNeedsInsightsUpdate(insightsData.needs_update);
-          } else {
-            setNeedsInsightsUpdate(true);
-          }
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [id]);
-
   // Agregar el listener para el evento de sincronización
   useEffect(() => {
     const handleSync = async (event) => {
@@ -162,59 +174,30 @@ export default function PostPage() {
     return () => window.removeEventListener('metrics-synced', handleSync);
   }, [details.post?.id]); // Dependencias necesarias
 
-  if (loading) return (
-    <main className="p-4">
-      <div className="container mx-auto">
-        {/* Header skeleton */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="h-8 w-48 bg-gray-200 rounded"></div>
-          <div className="h-10 w-24 bg-gray-200 rounded"></div>
-        </div>
+  if (authState === 'loading' || loading) {
+    return <PostSkeleton />;
+  }
 
-        {/* Main content grid */}
-        <div className="max-w-[1280px] mx-auto">
-          <div className="grid grid-cols-3 gap-4 h-[calc(100vh-180px)]">
-            {/* Column 1 - Video */}
-            <div className="flex flex-col h-full">
-              <div className="aspect-[9/16] bg-gray-200 rounded-xl"></div>
-            </div>
-
-            {/* Column 2 - Metrics */}
-            <div className="flex flex-col h-full space-y-4">
-              {/* Categorizations card */}
-              <div className="h-32 bg-gray-200 rounded-xl"></div>
-              {/* Engagement card */}
-              <div className="h-48 bg-gray-200 rounded-xl"></div>
-              {/* Video Performance card */}
-              <div className="h-48 bg-gray-200 rounded-xl"></div>
-              {/* Details card */}
-              <div className="h-40 bg-gray-200 rounded-xl"></div>
-            </div>
-
-            {/* Column 3 - Transcript */}
-            <div className="flex flex-col h-full">
-              <div className="flex-1 bg-gray-200 rounded-xl"></div>
-            </div>
-          </div>
-        </div>
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="text-red-500">Error: {error}</div>
       </div>
-    </main>
-  );
-
-  if (error) return (
-    <div className="p-8">
-      <div className="text-red-500">Error: {error}</div>
-    </div>
-  );
+    );
+  }
 
   const { post, currentCategory, currentSubcategory, categories, subcategories, transcript } = details;
   
   const handleTranscribe = async () => {
     try {
+      if (!user?.username) {
+        console.log('[PostPage] No username available yet, waiting...');
+        return;  // En lugar de lanzar error, simplemente retornamos
+      }
+      
       setIsTranscribing(true);
       const transcriptResult = await generateTranscript(post.instagram_account_id, post.id);
       
-      // Actualizar el estado con el nuevo transcript
       setDetails(prev => ({
         ...prev,
         transcript: transcriptResult
@@ -364,7 +347,7 @@ export default function PostPage() {
                           <Tab 
                             key="category" 
                             title="Por categoría"
-                            isDisabled={!details.post.category_id} 
+                            isDisabled={!details?.post?.category_id}
                           />
                           <Tab key="global" title="Global" />
                         </Tabs>
@@ -422,7 +405,7 @@ export default function PostPage() {
                           <Tab 
                             key="category" 
                             title="Por categoría"
-                            isDisabled={!details.post.category_id} 
+                            isDisabled={!details?.post?.category_id}
                           />
                           <Tab key="global" title="Global" />
                         </Tabs>
@@ -521,54 +504,6 @@ export default function PostPage() {
                         <div className="mt-6 text-center">
                           <LoadingMessage activeTab={activeTab} />
                         </div>
-                      </div>
-                    )}
-
-                    {/* Skeleton Loading */}
-                    {isLoadingInsights && (
-                      <div className="space-y-6 opacity-50">
-                        {/* Skeleton Summary Card */}
-                        <Card>
-                          <CardBody>
-                            <div className="flex items-center gap-4">
-                              <Skeleton className="w-16 h-16 rounded-full" />
-                              <div className="space-y-2">
-                                <Skeleton className="h-4 w-32" />
-                                <Skeleton className="h-3 w-48" />
-                              </div>
-                            </div>
-                          </CardBody>
-                        </Card>
-
-                        {/* Skeleton Metrics */}
-                        <Card>
-                          <CardBody>
-                            <Skeleton className="h-5 w-40 mb-4" />
-                            <div className="space-y-4">
-                              {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                  <Skeleton className="w-6 h-6 rounded-full" />
-                                  <div className="space-y-2">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-3 w-48" />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </CardBody>
-                        </Card>
-
-                        {/* Skeleton Content Analysis */}
-                        <Card>
-                          <CardBody>
-                            <Skeleton className="h-5 w-40 mb-4" />
-                            <div className="space-y-2">
-                              <Skeleton className="h-3 w-full" />
-                              <Skeleton className="h-3 w-5/6" />
-                              <Skeleton className="h-3 w-4/6" />
-                            </div>
-                          </CardBody>
-                        </Card>
                       </div>
                     )}
 

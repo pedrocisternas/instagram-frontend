@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/store/auth';
 import apiClient from './clientApi';
 
 export async function generateTranscript(accountId, postId) {
@@ -5,7 +6,14 @@ export async function generateTranscript(accountId, postId) {
   if (!postId) throw new Error('Post ID is required');
 
   try {
-    return apiClient.post(`/api/transcripts/${accountId}/${postId}/generate`);
+    const { user } = useAuthStore.getState();
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
+    return apiClient.post(`/api/transcripts/${accountId}/${postId}/generate`, {
+      username: user.username
+    });
   } catch (error) {
     if (error.message.includes('404')) {
       throw new Error('Post not found');
@@ -19,7 +27,12 @@ export async function getTranscript(accountId, postId) {
   if (!postId) throw new Error('Post ID is required');
 
   try {
-    return apiClient.get(`/api/transcripts/${accountId}/${postId}`);
+    const { user } = useAuthStore.getState();
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+
+    return apiClient.get(`/api/transcripts/${accountId}/${postId}?username=${user.username}`);
   } catch (error) {
     if (error.message.includes('404')) {
       return null;
