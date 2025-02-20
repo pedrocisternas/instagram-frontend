@@ -127,8 +127,8 @@ export default function PrivacyPolicy() {
             <h2 className="text-2xl font-semibold mb-6 text-gray-800">6. Contacto</h2>
             <p className="text-gray-600">
               Para cualquier consulta sobre esta política de privacidad o sus datos, puede contactarnos a través de:
-              <a href="mailto:pgcisternas@gmail.com" className="text-blue-600 hover:text-blue-800 ml-1">
-                pgcisternas@gmail.com
+              <a href="mailto:pedrocisternas86@gmail.com" className="text-blue-600 hover:text-blue-800 ml-1">
+              pedrocisternas86@gmail.com
               </a>
             </p>
           </section>

@@ -1,7 +1,5 @@
-import { APP_CONFIG } from '@/config/app';
 import { useAuthStore } from '@/store/auth';
-
-const API_BASE_URL = `${APP_CONFIG.API_URL}/api`;
+import apiClient from './clientApi';
 
 // Categorías
 export async function fetchCategories() {
@@ -11,13 +9,7 @@ export async function fetchCategories() {
       throw new Error('No authenticated user found');
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/categories?username=${user.username}`
-    );
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
+    const data = await apiClient.get(`/api/categories?username=${user.username}`);
     return data.categories;
   } catch (error) {
     console.error('Service: Error fetching categories:', error);
@@ -32,16 +24,10 @@ export async function createCategory(name) {
       throw new Error('No authenticated user found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/categories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: user.username, name })
+    return apiClient.post('/api/categories', { 
+      username: user.username, 
+      name 
     });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error creating category');
-    }
-    return response.json();
   } catch (error) {
     console.error('Service: Error creating category:', error);
     throw error;
@@ -55,18 +41,10 @@ export async function assignCategoryToPost(categoryId, postId) {
       throw new Error('No authenticated user found');
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/categories/${categoryId}/posts/${postId}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user.username })
-      }
+    return apiClient.put(
+      `/api/categories/${categoryId}/posts/${postId}`,
+      { username: user.username }
     );
-    if (!response.ok) {
-      throw new Error('Error assigning category');
-    }
-    return response.json();
   } catch (error) {
     console.error('Service: Error assigning category:', error);
     throw error;
@@ -81,13 +59,9 @@ export async function fetchSubcategories(categoryId) {
       throw new Error('No authenticated user found');
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/subcategories?username=${user.username}&categoryId=${categoryId}`
+    const data = await apiClient.get(
+      `/api/subcategories?username=${user.username}&categoryId=${categoryId}`
     );
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
     return data.subcategories;
   } catch (error) {
     console.error('Service: Error fetching subcategories:', error);
@@ -102,20 +76,11 @@ export async function createSubcategory(categoryId, name) {
       throw new Error('No authenticated user found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/subcategories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        username: user.username,
-        categoryId,
-        name
-      })
+    return apiClient.post('/api/subcategories', { 
+      username: user.username,
+      categoryId,
+      name
     });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Error creating subcategory');
-    }
-    return response.json();
   } catch (error) {
     console.error('Service: Error creating subcategory:', error);
     throw error;
@@ -129,18 +94,10 @@ export async function assignSubcategoryToPost(subcategoryId, postId) {
       throw new Error('No authenticated user found');
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/subcategories/${subcategoryId}/posts/${postId}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: user.username })
-      }
+    return apiClient.put(
+      `/api/subcategories/${subcategoryId}/posts/${postId}`,
+      { username: user.username }
     );
-    if (!response.ok) {
-      throw new Error('Error assigning subcategory');
-    }
-    return response.json();
   } catch (error) {
     console.error('Service: Error assigning subcategory:', error);
     throw error;
