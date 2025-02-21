@@ -82,6 +82,32 @@ export default function PostPage() {
     loadData();
   }, [id, authState]);
 
+  // 4. Efecto separado para la transcripción
+  useEffect(() => {
+    const generatePostTranscript = async () => {
+      if (!details.post?.id || !user?.username || details.transcript) return;
+
+      try {
+        setIsTranscribing(true);
+        const transcriptResult = await generateTranscript(
+          details.post.instagram_account_id, 
+          details.post.id
+        );
+        
+        setDetails(prev => ({
+          ...prev,
+          transcript: transcriptResult
+        }));
+      } catch (error) {
+        console.error('Error al transcribir:', error);
+      } finally {
+        setIsTranscribing(false);
+      }
+    };
+
+    generatePostTranscript();
+  }, [details.post?.id, user?.username, details.transcript]);
+
   const handleAssignCategory = async (categoryId, postId) => {
     const previousDetails = { ...details };
     
@@ -258,7 +284,7 @@ export default function PostPage() {
             {/* Columna 2 - Métricas */}
             <div className="flex flex-col h-full overflow-y-auto">
               <div className="space-y-4">
-                <Card>
+                <Card className="bg-background">
                   <CardBody>
                     <h3 className="text-lg font-semibold mb-4">Detalles</h3>
                     <div className="space-y-4">
@@ -331,7 +357,7 @@ export default function PostPage() {
                   </CardBody>
                 </Card>
 
-                <Card>
+                <Card className="bg-background">
                   <CardBody>
                     <div className="flex flex-col space-y-4">
                       <div className="flex justify-between items-center">
@@ -389,7 +415,7 @@ export default function PostPage() {
                   </CardBody>
                 </Card>
 
-                <Card>
+                <Card className="bg-background">
                   <CardBody>
                     <div className="flex flex-col space-y-4">
                       <div className="flex justify-between items-center">
@@ -489,8 +515,9 @@ export default function PostPage() {
 
                   <div className="relative">
                     {/* Estado de Carga */}
-                    {(isLoadingInsights || isTranscribing) && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+                    {((activeTab === "transcript" && isTranscribing) || 
+                      (activeTab === "insights" && isLoadingInsights)) && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-10">
                         <div className="relative">
                           <div className="w-20 h-20">
                             <CircularProgress
@@ -620,35 +647,16 @@ export default function PostPage() {
                         ) : (
                           <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)] relative">
                             <div className="w-20 h-20 text-secondary mb-4">
-                              {isTranscribing ? (
-                                <CircularProgress
-                                  size="lg"
-                                  color="secondary"
-                                  isIndeterminate
-                                  className="w-full h-full"
-                                />
-                              ) : (
-                                <MagnifyingGlassIcon className="w-full h-full" />
-                              )}
+                              <CircularProgress
+                                size="lg"
+                                color="secondary"
+                                isIndeterminate
+                                className="w-full h-full"
+                              />
                             </div>
                             <div className="mb-4">
-                              {isTranscribing ? (
-                                <TranscriptLoadingMessage />
-                              ) : (
-                                <p className="text-gray-600 text-center">
-                                  No hay transcripción disponible.
-                                </p>
-                              )}
+                              <TranscriptLoadingMessage />
                             </div>
-                            {!isTranscribing && (
-                              <Button
-                                color="secondary"
-                                onClick={handleTranscribe}
-                                size="lg"
-                              >
-                                Transcribir Video
-                              </Button>
-                            )}
                           </div>
                         )}
                       </div>
