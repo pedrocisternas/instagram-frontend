@@ -65,8 +65,10 @@ export default function Sidebar() {
         <div className="p-4 border-b border-gray-200">
           <div className="w-10 h-10 rounded-full overflow-hidden">
             <Image
-              src={user?.profile_picture || "/images/profile.jpg"}
-              alt="Profile picture"
+              src={authState === 'authenticated' && user?.profile_picture 
+                ? user.profile_picture 
+                : "/images/logo.png"}
+              alt={authState === 'authenticated' ? "Profile picture" : "Logo"}
               width={40}
               height={40}
               className="object-cover"

@@ -11,10 +11,17 @@ export async function generateTranscript(accountId, postId) {
       throw new Error('No authenticated user found');
     }
 
-    return apiClient.post(`/api/transcripts/${accountId}/${postId}/generate`, {
+    const response = await apiClient.post(`/api/transcripts/${accountId}/${postId}/generate`, {
       username: user.username
     });
+    return response;
   } catch (error) {
+    if (error.response?.status === 422) {
+      if (error.response?.data?.error === 'NO_AUDIO' || 
+          error.response?.data?.error === 'NO_TRANSCRIBABLE_CONTENT') {
+        throw new Error('NO_AUDIO');
+      }
+    }
     if (error.message.includes('404')) {
       throw new Error('Post not found');
     }

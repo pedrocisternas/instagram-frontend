@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton } from "@heroui/react";
+import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton, Image } from "@heroui/react";
 import { formatDate, formatTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
 import { 
@@ -85,7 +85,7 @@ export default function PostPage() {
   // 4. Efecto separado para la transcripción
   useEffect(() => {
     const generatePostTranscript = async () => {
-      if (!details.post?.id || !user?.username || details.transcript) return;
+      if (!details.post?.id || !user?.username || details.transcript || details.transcriptionError) return;
 
       try {
         setIsTranscribing(true);
@@ -100,13 +100,17 @@ export default function PostPage() {
         }));
       } catch (error) {
         console.error('Error al transcribir:', error);
+        setDetails(prev => ({
+          ...prev,
+          transcriptionError: error.message
+        }));
       } finally {
         setIsTranscribing(false);
       }
     };
 
     generatePostTranscript();
-  }, [details.post?.id, user?.username, details.transcript]);
+  }, [details.post?.id, user?.username, details.transcript, details.transcriptionError]);
 
   const handleAssignCategory = async (categoryId, postId) => {
     const previousDetails = { ...details };
@@ -199,6 +203,16 @@ export default function PostPage() {
     window.addEventListener('metrics-synced', handleSync);
     return () => window.removeEventListener('metrics-synced', handleSync);
   }, [details.post?.id]); // Dependencias necesarias
+
+  const getProfileImage = (user) => {
+    if (!user) return "/images/logo.png";
+    
+    // Si el usuario tiene foto de perfil, la usamos
+    if (user.profile_picture) return user.profile_picture;
+    
+    // Si no tiene foto de perfil, usamos un placeholder
+    return "/images/logo.png";
+  };
 
   if (authState === 'loading' || loading) {
     return <PostSkeleton />;
@@ -624,28 +638,48 @@ export default function PostPage() {
                       <div className="flex-1 overflow-y-auto">
                         {details.transcript ? (
                           <div className="space-y-4">
-                            {/* Texto completo siempre visible */}
-                            <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                              {details.transcript.full_text}
-                            </div>
-
-                            {/* Segmentos con marcas de tiempo (expandible) */}
-                            <div className={`transition-all duration-300 overflow-hidden max-h-[1000px]`}>
-                              <div className="mt-6 mb-2">
-                                <h4 className="text-sm font-semibold text-gray-700">Segmentos con marcas de tiempo</h4>
-                              </div>
+                            {details.transcript.segments?.length > 0 ? (
                               <div className="space-y-2">
                                 {details.transcript.segments.map((segment, index) => (
-                                  <div key={index} className="text-xs text-gray-500">
-                                    <span className="font-medium">{segment.startTime} - {segment.endTime}:</span>
+                                  <div key={index} className="text-sm text-gray-600">
+                                    <span className="font-medium text-gray-500">{segment.startTime} - {segment.endTime}:</span>
                                     <span className="ml-2">{segment.text}</span>
                                   </div>
                                 ))}
                               </div>
+                            ) : (
+                              <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                                {details.transcript.full_text}
+                              </div>
+                            )}
+                          </div>
+                        ) : isTranscribing ? (
+                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)] relative">
+                            <div className="w-20 h-20 text-secondary mb-4">
+                              <CircularProgress
+                                size="lg"
+                                color="secondary"
+                                isIndeterminate
+                                className="w-full h-full"
+                              />
+                            </div>
+                            <div className="mb-4">
+                              <TranscriptLoadingMessage />
                             </div>
                           </div>
+                        ) : details.transcriptionError === 'NO_AUDIO' ? (
+                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)]">
+                            <div className="w-20 h-20 text-gray-400 mb-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.531V19.94a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.506-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
+                              </svg>
+                            </div>
+                            <p className="text-gray-600 text-center">
+                              Este video no contiene audio para transcribir
+                            </p>
+                          </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)] relative">
+                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)]">
                             <div className="w-20 h-20 text-secondary mb-4">
                               <CircularProgress
                                 size="lg"
@@ -667,6 +701,16 @@ export default function PostPage() {
             </div>
           </div>
         </div>
+        <Image
+          src={getProfileImage(user)}
+          alt={user ? `${user.username}'s profile` : "Logo"}
+          width={40}
+          height={40}
+          className="object-cover"
+          onError={(e) => {
+            e.target.src = "/images/logo.png"; // Fallback si la imagen falla al cargar
+          }}
+        />
       </div>
     </main>
   );
