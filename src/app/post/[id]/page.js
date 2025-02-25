@@ -701,16 +701,6 @@ export default function PostPage() {
             </div>
           </div>
         </div>
-        <Image
-          src={getProfileImage(user)}
-          alt={user ? `${user.username}'s profile` : "Logo"}
-          width={40}
-          height={40}
-          className="object-cover"
-          onError={(e) => {
-            e.target.src = "/images/logo.png"; // Fallback si la imagen falla al cargar
-          }}
-        />
       </div>
     </main>
   );
