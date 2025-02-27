@@ -97,21 +97,40 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
   useEffect(() => {
     const handleSync = async (event) => {
       try {
-        if (!user?.username || !hasLoadedInitialData) return; // Solo sincronizar después de la carga inicial
+        if (!user?.username || !hasLoadedInitialData) return;
 
         const data = event.detail;
+        
+        // 1. Actualizar inmediatamente los datos básicos
         setPosts(data.posts);
         setCategories(data.categories);
         setSubcategories(data.subcategories);
         
-        const [metricsData] = await Promise.all([
-          getDashboardMetrics(),
-          loadInsights()
-        ]);
-        
-        if (metricsData.metrics) {
-          setMetrics(metricsData.metrics);
+        // 2. Actualizar métricas (esto es rápido y no requiere esperar por insights)
+        try {
+          const metricsData = await getDashboardMetrics();
+          if (metricsData.metrics) {
+            setMetrics(metricsData.metrics);
+          }
+        } catch (metricsError) {
+          console.error('[HomePage] Error cargando métricas:', metricsError);
         }
+        
+        // 3. Forzar re-renderizado de componentes que no son insights
+        const currentTimeRange = timeRange;
+        setTimeRange("__refresh__");
+        setTimeout(() => setTimeRange(currentTimeRange), 50);
+        
+        // 4. Cargar insights en paralelo (proceso más lento)
+        setIsLoadingInsights(true);
+        try {
+          await loadInsights();
+        } catch (insightsError) {
+          console.error('[HomePage] Error cargando insights:', insightsError);
+        } finally {
+          setIsLoadingInsights(false);
+        }
+        
       } catch (error) {
         console.error('[HomePage] Error en sincronización:', error);
       }
@@ -119,7 +138,7 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
 
     window.addEventListener('metrics-synced', handleSync);
     return () => window.removeEventListener('metrics-synced', handleSync);
-  }, [user?.username, hasLoadedInitialData]);
+  }, [user?.username, hasLoadedInitialData, timeRange]);
 
   // Agregar este useEffect para manejar la redirección
   useEffect(() => {
