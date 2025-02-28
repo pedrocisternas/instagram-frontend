@@ -1,13 +1,22 @@
-import { Card, CardBody } from "@heroui/react";
+import { Card, CardBody, Tooltip } from "@heroui/react";
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
 
 const StatItem = ({ label, value, subtitle, formatter = (val) => Math.round(val)?.toLocaleString() }) => (
-  <Card>
-    <CardBody>
-      <h3 className="text-sm text-gray-600">
-        {label}
-        {subtitle && <span className="text-xs text-gray-500 ml-1">({subtitle})</span>}
-      </h3>
-      <p className="text-2xl font-semibold">{formatter(value)}</p>
+  <Card className="h-24 shadow-xs">
+    <CardBody className="py-3 px-4 flex flex-col justify-between">
+      <div className="text-sm text-gray-600 font-medium flex items-center">
+        <span className="truncate">{label}</span>
+        {subtitle && (
+          <Tooltip content={subtitle} placement="top">
+            <span className="ml-1 cursor-help">
+              <InformationCircleIcon className="h-4 w-4 text-gray-400" />
+            </span>
+          </Tooltip>
+        )}
+      </div>
+      <div className="text-center">
+        <p className="text-3xl font-semibold text-gray-800">{formatter(value)}</p>
+      </div>
     </CardBody>
   </Card>
 );
@@ -79,19 +88,19 @@ export default function StatsSummaryPanel({ posts }) {
       formatter: (val) => val.toLocaleString()
     },
     { 
-      label: "Promedio Views", 
+      label: "Prom. Views", 
       key: "views",
       subtitle: "sólo Reels",
       filterFn: isValidReel
     },
-    { label: "Promedio Likes", key: "likes" },
-    { label: "Promedio Shares", key: "shares" },
-    { label: "Promedio Comments", key: "comments" },
-    { label: "Promedio Saves", key: "saves" }
+    { label: "Prom. Likes", key: "likes" },
+    { label: "Prom. Shares", key: "shares" },
+    { label: "Prom. Comments", key: "comments" },
+    { label: "Prom. Saves", key: "saves" }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-5">
       {metrics.map(({ label, key, subtitle, filterFn, value, formatter }) => (
         <StatItem
           key={key}
