@@ -10,7 +10,7 @@ import {
   assignSubcategoryToPost,
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
@@ -31,7 +31,6 @@ export default function PostPage() {
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
   const [needsInsightsUpdate, setNeedsInsightsUpdate] = useState(false);
-  const [activeTab, setActiveTab] = useState("insights");
   const [comparisonType, setComparisonType] = useState('category');
   const [details, setDetails] = useState({
     post: null,
@@ -250,9 +249,10 @@ export default function PostPage() {
   };
 
   return (
-    <main className="p-4">
+    <main className="p-8 bg-gray-50 min-h-screen">
       <div className="container mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        {/* Título y botón de volver, ahora directamente en el fondo gris como en page.js */}
+        <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">Detalles del Post</h1>
             {post?.permalink && (
@@ -275,9 +275,9 @@ export default function PostPage() {
 
         {/* Contenedor principal - 3 columnas, centrado */}
         <div className="max-w-[1280px] mx-auto">
-          <div className="grid grid-cols-3 gap-4 h-[calc(100vh-180px)]">
+          <div className="grid grid-cols-3 gap-6 h-[calc(100vh-180px)]">
             {/* Columna 1 - Video */}
-            <div className="flex flex-col h-full">
+            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
               <div className="aspect-[9/16] rounded-xl overflow-hidden border-2 border-black bg-black">
                 {post?.media_url ? (
                   <video
@@ -296,408 +296,384 @@ export default function PostPage() {
             </div>
 
             {/* Columna 2 - Métricas */}
-            <div className="flex flex-col h-full overflow-y-auto">
-              <div className="space-y-4">
-                <Card className="bg-background">
-                  <CardBody>
-                    <h3 className="text-lg font-semibold mb-4">Detalles</h3>
-                    <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
+              <div className="flex flex-col space-y-4 overflow-auto pr-1">
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Detalles</h3>
+                  <div className="space-y-4">
                     {post?.caption && (
-                        <div>
-                          <p className="text-sm text-gray-600">Caption</p>
-                          <div className="relative max-h-[40px] overflow-hidden">
-                            <p className="font-medium">{post.caption}</p>
+                      <div>
+                        <p className="text-sm text-gray-600">Caption</p>
+                        <div className="relative">
+                          <div className="flex items-center">
+                            <p className="font-medium truncate pr-8">{post.caption}</p>
                             {post.caption.length > 40 && (
-                              <>
-                                <div className="absolute bottom-0 w-full h-12 bg-gradient-to-t from-white to-transparent" />
-                                <Popover placement="top">
-                                  <PopoverTrigger>
-                                    <button className="absolute bottom-0 left-1/2 -translate-x-1/2 text-purple-600 text-sm flex items-center hover:text-purple-700">
-                                      Ver más <ChevronUpIcon className="w-4 h-4 ml-1" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-[400px] p-4 bg-white shadow-lg rounded-lg">
-                                    <p className="font-medium whitespace-pre-wrap">{post.caption}</p>
-                                  </PopoverContent>
-                                </Popover>
-                              </>
+                              <Popover placement="top">
+                                <PopoverTrigger>
+                                  <button className="absolute right-0 text-purple-600 hover:text-purple-700">
+                                    <PlusIcon className="w-5 h-5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[400px] p-4 bg-white shadow-lg rounded-lg">
+                                  <p className="font-medium whitespace-pre-wrap">{post.caption}</p>
+                                </PopoverContent>
+                              </Popover>
                             )}
                           </div>
                         </div>
-                      )}
-                      {/* Categorizaciones */}
-                      <div className="flex gap-4 mb-4">
-                        <div className="w-28">
-                          <p className="text-sm text-gray-600 mb-2">Categoría</p>
-                          <div className="min-h-[28px] flex items-center">
-                            <CategoryPopover
-                              category={currentCategory}
-                              categories={categories}
-                              onAssignCategory={(categoryId) => handleAssignCategory(categoryId, post.id)}
-                              type="categoría"
-                            />
-                          </div>
-                        </div>
-                        <div className="w-48">
-                          <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
-                          <div className="min-h-[28px] flex items-center">
-                            <CategoryPopover
-                              category={currentSubcategory}
-                              categories={subcategories.filter(sub => sub.category_id === post?.category_id)}
-                              onAssignCategory={(categoryId) => handleAssignSubcategory(categoryId, post.id)}
-                              parentCategory={currentCategory}
-                              type="subcategoría"
-                            />
-                          </div>
-                        </div>
                       </div>
-
-                      {/* Detalles existentes */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Fecha de publicación</p>
-                          <p className="font-medium">
-                            {post?.published_at && `${formatDate(post.published_at)} ${formatTime(post.published_at)}`}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Última actualización</p>
-                          <p className="font-medium">
-                            {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
-                          </p>
-                        </div>
-                      </div>                      
-                    </div>
-                  </CardBody>
-                </Card>
-
-                <Card className="bg-background">
-                  <CardBody>
-                    <div className="flex flex-col space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">Engagement</h3>
-                        <Tabs 
-                          selectedKey={comparisonType} 
-                          onSelectionChange={setComparisonType}
-                          size="sm"
-                          variant="solid"
-                          color="secondary"
-                          className="max-w-[200px]"
-                        >
-                          <Tab 
-                            key="category" 
-                            title="Por categoría"
-                            isDisabled={!details?.post?.category_id}
+                    )}
+                    {/* Categorizaciones */}
+                    <div className="flex gap-4 mb-4">
+                      <div className="w-28">
+                        <p className="text-sm text-gray-600 mb-2">Categoría</p>
+                        <div className="min-h-[28px] flex items-center">
+                          <CategoryPopover
+                            category={currentCategory}
+                            categories={categories}
+                            onAssignCategory={(categoryId) => handleAssignCategory(categoryId, post.id)}
+                            type="categoría"
                           />
-                          <Tab key="global" title="Global" />
-                        </Tabs>
+                        </div>
                       </div>
-                      
-                      <MetricWithDiff 
-                        label="Likes" 
-                        value={details.post.likes} 
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.likes 
-                          : details.categoryRelativeMetrics?.likes
-                        } 
-                      />
-                      <MetricWithDiff 
-                        label="Comments" 
-                        value={details.post.comments} 
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.comments 
-                          : details.categoryRelativeMetrics?.comments
-                        }
-                      />
-                      <MetricWithDiff 
-                        label="Saves" 
-                        value={details.post.saves} 
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.saves 
-                          : details.categoryRelativeMetrics?.saves
-                        }
-                      />
-                      <MetricWithDiff 
-                        label="Shares" 
-                        value={details.post.shares} 
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.shares 
-                          : details.categoryRelativeMetrics?.shares
-                        }
-                      />
-                    </div>
-                  </CardBody>
-                </Card>
-
-                <Card className="bg-background">
-                  <CardBody>
-                    <div className="flex flex-col space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">Rendimiento</h3>
-                        <Tabs 
-                          selectedKey={comparisonType} 
-                          onSelectionChange={setComparisonType}
-                          size="sm"
-                          variant="solid"
-                          color="secondary"
-                          className="max-w-[200px]"
-                        >
-                          <Tab 
-                            key="category" 
-                            title="Por categoría"
-                            isDisabled={!details?.post?.category_id}
+                      <div className="w-48">
+                        <p className="text-sm text-gray-600 mb-2">Subcategoría</p>
+                        <div className="min-h-[28px] flex items-center">
+                          <CategoryPopover
+                            category={currentSubcategory}
+                            categories={subcategories.filter(sub => sub.category_id === post?.category_id)}
+                            onAssignCategory={(categoryId) => handleAssignSubcategory(categoryId, post.id)}
+                            parentCategory={currentCategory}
+                            type="subcategoría"
                           />
-                          <Tab key="global" title="Global" />
-                        </Tabs>
+                        </div>
                       </div>
-
-                      <MetricWithDiff 
-                        label="Views" 
-                        value={details.post.views} 
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.views 
-                          : details.categoryRelativeMetrics?.views
-                        }
-                      />
-                      <MetricWithDiff 
-                        label="Reach" 
-                        value={details.post.reach}
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.reach 
-                          : details.categoryRelativeMetrics?.reach
-                        }
-                      />
-                      <MetricWithDiff 
-                        label="Avg Watch Time" 
-                        value={details.post.avg_watch_time} 
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.watchTime 
-                          : details.categoryRelativeMetrics?.watchTime
-                        }
-                        formatter={(val) => `${val?.toFixed(2)}s`}
-                      />
-                      <MetricWithDiff 
-                        label="Total Watch Time" 
-                        value={details.post.total_watch_time}
-                        diff={comparisonType === 'global' 
-                          ? details.relativeMetrics.totalWatchTime 
-                          : details.categoryRelativeMetrics?.totalWatchTime
-                        }
-                        formatter={(val) => `${(val / 1000).toFixed(2)}s`}
-                      />
                     </div>
-                  </CardBody>
-                </Card>
+
+                    {/* Agregar el botón de transcripción a los detalles */}
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Transcripción</p>
+                      <div className="min-h-[28px] flex items-center">
+                        {details.transcript ? (
+                          <Popover placement="bottom-start" showArrow>
+                            <PopoverTrigger>
+                              <Button 
+                                color="secondary" 
+                                className="bg-purple-100 text-purple-700 rounded-full px-4"
+                                size="sm"
+                                startContent={<DocumentTextIcon className="h-4 w-4" />}
+                              >
+                                Ver transcripción
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-96 max-h-96 overflow-y-auto p-4">
+                              {details.transcript.segments?.length > 0 ? (
+                                <div className="space-y-2">
+                                  {details.transcript.segments.map((segment, index) => (
+                                    <div key={index} className="text-sm text-gray-600">
+                                      <span className="font-medium text-gray-500">{segment.startTime} - {segment.endTime}:</span>
+                                      <span className="ml-2">{segment.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                                  {details.transcript.full_text}
+                                </div>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                        ) : isTranscribing ? (
+                          <Button
+                            color="secondary"
+                            size="sm"
+                            className="bg-purple-100 text-purple-700 rounded-full px-4"
+                            isDisabled
+                            startContent={
+                              <CircularProgress size="sm" color="secondary" className="mr-1" />
+                            }
+                          >
+                            <TranscriptLoadingMessage />
+                          </Button>
+                        ) : details.transcriptionError === 'NO_AUDIO' ? (
+                          <Button
+                            color="secondary"
+                            size="sm"
+                            className="bg-purple-100 text-purple-700 rounded-full px-4"
+                            isDisabled
+                            startContent={<NoSymbolIcon className="h-4 w-4" />}
+                          >
+                            Sin audio
+                          </Button>
+                        ) : (
+                          <Button
+                            color="secondary"
+                            size="sm"
+                            className="bg-purple-100 text-purple-700 rounded-full px-4"
+                            onClick={handleTranscribe}
+                            startContent={<PlusIcon className="h-4 w-4" />}
+                          >
+                            Transcribir
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detalles existentes */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">Fecha de publicación</p>
+                        <p className="font-medium">
+                          {post?.published_at && `${formatDate(post.published_at)} ${formatTime(post.published_at)}`}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Última actualización</p>
+                        <p className="font-medium">
+                          {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
+                        </p>
+                      </div>
+                    </div>                      
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Engagement</h3>
+                    <Tabs 
+                      selectedKey={comparisonType} 
+                      onSelectionChange={setComparisonType}
+                      size="sm"
+                      variant="solid"
+                      color="secondary"
+                      className="max-w-[200px]"
+                    >
+                      <Tab 
+                        key="category" 
+                        title="Por categoría"
+                        isDisabled={!details?.post?.category_id}
+                      />
+                      <Tab key="global" title="Global" />
+                    </Tabs>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-4">
+                    <MetricWithDiff 
+                      label="Likes" 
+                      value={details.post.likes} 
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.likes 
+                        : details.categoryRelativeMetrics?.likes
+                      } 
+                    />
+                    <MetricWithDiff 
+                      label="Comments" 
+                      value={details.post.comments} 
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.comments 
+                        : details.categoryRelativeMetrics?.comments
+                      }
+                    />
+                    <MetricWithDiff 
+                      label="Saves" 
+                      value={details.post.saves} 
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.saves 
+                        : details.categoryRelativeMetrics?.saves
+                      }
+                    />
+                    <MetricWithDiff 
+                      label="Shares" 
+                      value={details.post.shares} 
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.shares 
+                        : details.categoryRelativeMetrics?.shares
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Rendimiento</h3>
+                    <Tabs 
+                      selectedKey={comparisonType} 
+                      onSelectionChange={setComparisonType}
+                      size="sm"
+                      variant="solid"
+                      color="secondary"
+                      className="max-w-[200px]"
+                    >
+                      <Tab 
+                        key="category" 
+                        title="Por categoría"
+                        isDisabled={!details?.post?.category_id}
+                      />
+                      <Tab key="global" title="Global" />
+                    </Tabs>
+                  </div>
+
+                  <div className="flex flex-col space-y-4">
+                    <MetricWithDiff 
+                      label="Views" 
+                      value={details.post.views} 
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.views 
+                        : details.categoryRelativeMetrics?.views
+                      }
+                    />
+                    <MetricWithDiff 
+                      label="Reach" 
+                      value={details.post.reach}
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.reach 
+                        : details.categoryRelativeMetrics?.reach
+                      }
+                    />
+                    <MetricWithDiff 
+                      label="Avg Watch Time" 
+                      value={details.post.avg_watch_time} 
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.watchTime 
+                        : details.categoryRelativeMetrics?.watchTime
+                      }
+                      formatter={(val) => `${val?.toFixed(2)}s`}
+                    />
+                    <MetricWithDiff 
+                      label="Total Watch Time" 
+                      value={details.post.total_watch_time}
+                      diff={comparisonType === 'global' 
+                        ? details.relativeMetrics.totalWatchTime 
+                        : details.categoryRelativeMetrics?.totalWatchTime
+                      }
+                      formatter={(val) => `${(val / 1000).toFixed(2)}s`}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Columna 3 - Transcripción e Insights */}
-            <div className="flex flex-col h-full gap-4">
-              <Card className="flex-1">
-                <CardBody className="flex flex-col h-[calc(100vh-280px)]">
-                  <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2">
-                      <Tabs 
-                        selectedKey={activeTab} 
-                        onSelectionChange={setActiveTab}
-                        size="sm"
-                        variant="solid"
-                        color="secondary"
-                        className="max-w-[300px]"
-                      >
-                        <Tab key="insights" title="Insights" />
-                        <Tab key="transcript" title="Transcripción" />
-                      </Tabs>
-                    </div>
-                    {activeTab === "insights" && needsInsightsUpdate && insights && (
-                      <Button
-                        color="secondary"
-                        size="sm"
-                        onClick={handleGenerateInsights}
-                        disabled={isLoadingInsights}
-                        startContent={isLoadingInsights && (
-                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        )}
-                      >
-                        Actualizar
-                      </Button>
+            {/* Columna 3 - Solo Insights */}
+            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Insights</h3>
+                {needsInsightsUpdate && insights && (
+                  <Button
+                    color="secondary"
+                    size="sm"
+                    onClick={handleGenerateInsights}
+                    disabled={isLoadingInsights}
+                    startContent={isLoadingInsights && (
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
                     )}
-                  </div>
+                  >
+                    Actualizar
+                  </Button>
+                )}
+              </div>
 
-                  <div className="relative">
-                    {/* Estado de Carga */}
-                    {((activeTab === "transcript" && isTranscribing) || 
-                      (activeTab === "insights" && isLoadingInsights)) && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-background z-10">
-                        <div className="relative">
-                          <div className="w-20 h-20">
-                            <CircularProgress
-                              size="lg"
-                              color="secondary"
-                              isIndeterminate
-                              className="absolute inset-0"
-                            />
-                          </div>
-                        </div>
-                        <div className="mt-6 text-center">
-                          <LoadingMessage activeTab={activeTab} />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Contenido Real */}
-                    {!isLoadingInsights && activeTab === "insights" && (insights ? (
-                      <div className="space-y-6 transition-all duration-300">
-                        {/* Summary Section */}
-                        <Card>
-                          <CardBody>
-                            <div className="flex items-center gap-4">
-                              <div className={`text-2xl ${
-                                insights.summary.score >= 80 ? 'text-success' :
-                                insights.summary.score >= 60 ? 'text-warning' :
-                                'text-danger'
-                              }`}>
-                                {insights.summary.score}
-                              </div>
-                              <div>
-                                <h4 className="text-sm font-semibold">{insights.summary.status}</h4>
-                                <p className="text-sm text-gray-600">{insights.summary.quick_take}</p>
-                              </div>
-                            </div>
-                          </CardBody>
-                        </Card>
-
-                        {/* Metrics Analysis */}
-                        <Card>
-                          <CardBody>
-                            <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
-                            <div className="space-y-4">
-                              {insights.metrics_analysis.highlights.map((highlight, index) => (
-                                <div key={index} className="flex items-center gap-3">
-                                  <div className={`text-xl ${
-                                    highlight.trend === 'up' ? 'text-success' :
-                                    highlight.trend === 'down' ? 'text-danger' :
-                                    'text-warning'
-                                  }`}>
-                                    {highlight.trend === 'up' ? '↑' : highlight.trend === 'down' ? '↓' : '→'}
-                                  </div>
-                                  <div>
-                                    <div className="flex items-baseline gap-2">
-                                      <span className="font-medium">{highlight.metric}</span>
-                                      <span className="text-sm text-gray-600">{highlight.value}</span>
-                                    </div>
-                                    <p className="text-sm text-gray-600">{highlight.insight}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </CardBody>
-                        </Card>
-
-                        {/* Content Analysis */}
-                        <Card>
-                          <CardBody>
-                            <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
-                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                              {insights.content_analysis}
-                            </p>
-                          </CardBody>
-                        </Card>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)]">
-                        <div className="w-20 h-20 text-secondary mb-4">
-                          <MagnifyingGlassIcon className="w-full h-full" />
-                        </div>
-                        <p className="text-gray-600 text-center mb-4">
-                          No hay insights disponibles para este post.
-                        </p>
-                        <Button
-                          color="secondary"
-                          onClick={handleGenerateInsights}
+              <div className="relative h-full">
+                {/* Estado de Carga para los Insights */}
+                {isLoadingInsights && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                    <div className="relative">
+                      <div className="w-20 h-20">
+                        <CircularProgress
                           size="lg"
-                          disabled={isLoadingInsights}
-                        >
-                          {isLoadingInsights ? (
-                            <div className="flex items-center gap-2">
-                              <CircularProgress size="sm" color="current" />
-                              <span>Generando...</span>
-                            </div>
-                          ) : (
-                            "Generar Insights"
-                          )}
-                        </Button>
+                          color="secondary"
+                          isIndeterminate
+                          className="absolute inset-0"
+                        />
                       </div>
-                    ))}
-
-                    {/* Transcript Tab Content */}
-                    {activeTab === "transcript" && (
-                      <div className="flex-1 overflow-y-auto">
-                        {details.transcript ? (
-                          <div className="space-y-4">
-                            {details.transcript.segments?.length > 0 ? (
-                              <div className="space-y-2">
-                                {details.transcript.segments.map((segment, index) => (
-                                  <div key={index} className="text-sm text-gray-600">
-                                    <span className="font-medium text-gray-500">{segment.startTime} - {segment.endTime}:</span>
-                                    <span className="ml-2">{segment.text}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                                {details.transcript.full_text}
-                              </div>
-                            )}
-                          </div>
-                        ) : isTranscribing ? (
-                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)] relative">
-                            <div className="w-20 h-20 text-secondary mb-4">
-                              <CircularProgress
-                                size="lg"
-                                color="secondary"
-                                isIndeterminate
-                                className="w-full h-full"
-                              />
-                            </div>
-                            <div className="mb-4">
-                              <TranscriptLoadingMessage />
-                            </div>
-                          </div>
-                        ) : details.transcriptionError === 'NO_AUDIO' ? (
-                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)]">
-                            <div className="w-20 h-20 text-gray-400 mb-4">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-4.72a.75.75 0 011.28.531V19.94a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.506-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" />
-                              </svg>
-                            </div>
-                            <p className="text-gray-600 text-center">
-                              Este video no contiene audio para transcribir
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-[calc(100vh-400px)]">
-                            <div className="w-20 h-20 text-secondary mb-4">
-                              <CircularProgress
-                                size="lg"
-                                color="secondary"
-                                isIndeterminate
-                                className="w-full h-full"
-                              />
-                            </div>
-                            <div className="mb-4">
-                              <TranscriptLoadingMessage />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    </div>
+                    <div className="mt-6 text-center">
+                      <LoadingMessage />
+                    </div>
                   </div>
-                </CardBody>
-              </Card>
+                )}
+
+                {/* Contenido de Insights */}
+                {!isLoadingInsights && (insights ? (
+                  <div className="space-y-6 transition-all duration-300 overflow-auto h-[calc(100vh-260px)] pr-1">
+                    {/* Summary Section */}
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <div className="flex items-center gap-4">
+                        <div className={`text-2xl ${
+                          insights.summary.score >= 80 ? 'text-success' :
+                          insights.summary.score >= 60 ? 'text-warning' :
+                          'text-danger'
+                        }`}>
+                          {insights.summary.score}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-semibold">{insights.summary.status}</h4>
+                          <p className="text-sm text-gray-600">{insights.summary.quick_take}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Metrics Analysis */}
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
+                      <div className="space-y-4">
+                        {insights.metrics_analysis.highlights.map((highlight, index) => (
+                          <div key={index} className="flex items-center gap-3">
+                            <div className={`text-xl ${
+                              highlight.trend === 'up' ? 'text-success' :
+                              highlight.trend === 'down' ? 'text-danger' :
+                              'text-warning'
+                            }`}>
+                              {highlight.trend === 'up' ? '↑' : highlight.trend === 'down' ? '↓' : '→'}
+                            </div>
+                            <div>
+                              <div className="flex items-baseline gap-2">
+                                <span className="font-medium">{highlight.metric}</span>
+                                <span className="text-sm text-gray-600">{highlight.value}</span>
+                              </div>
+                              <p className="text-sm text-gray-600">{highlight.insight}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Content Analysis */}
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                        {insights.content_analysis}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <div className="w-20 h-20 text-secondary mb-4">
+                      <MagnifyingGlassIcon className="w-full h-full" />
+                    </div>
+                    <p className="text-gray-600 text-center mb-4">
+                      No hay insights disponibles para este post.
+                    </p>
+                    <Button
+                      color="secondary"
+                      onClick={handleGenerateInsights}
+                      size="lg"
+                      disabled={isLoadingInsights}
+                    >
+                      {isLoadingInsights ? (
+                        <div className="flex items-center gap-2">
+                          <CircularProgress size="sm" color="current" />
+                          <span>Generando...</span>
+                        </div>
+                      ) : (
+                        "Generar Insights"
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -707,10 +683,8 @@ export default function PostPage() {
 }
 
 // Modificar el componente LoadingMessage para recibir activeTab como prop
-function LoadingMessage({ activeTab }) {
-  const messages = activeTab === "transcript" 
-    ? ["Analizando video...", "Extrayendo audio...", "Transcribiendo video..."]
-    : ["Analizando métricas...", "Generando insights...", "Organizando insights...", "Procesando contenido..."];
+function LoadingMessage() {
+  const messages = ["Analizando métricas...", "Generando insights...", "Organizando insights...", "Procesando contenido..."];
 
   const [messageIndex, setMessageIndex] = useState(0);
 
@@ -720,7 +694,7 @@ function LoadingMessage({ activeTab }) {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [messages.length]);
+  }, []);
 
   return (
     <p className="text-secondary-600 text-center animate-fade-in">
@@ -747,7 +721,7 @@ function TranscriptLoadingMessage() {
   }, []);
 
   return (
-    <p className="text-secondary-600 text-center animate-fade-in">
+    <p className="text-secondary-600 text-xs animate-fade-in">
       {messages[messageIndex]}
     </p>
   );
