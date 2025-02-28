@@ -2,7 +2,7 @@ import { Card, CardBody, Tooltip } from "@heroui/react";
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 
 const StatItem = ({ label, value, subtitle, formatter = (val) => Math.round(val)?.toLocaleString() }) => (
-  <Card className="h-24 shadow-xs">
+  <Card className="h-20 shadow-xs">
     <CardBody className="py-3 px-4 flex flex-col justify-between">
       <div className="text-sm text-gray-600 font-medium flex items-center">
         <span className="truncate">{label}</span>
@@ -14,8 +14,8 @@ const StatItem = ({ label, value, subtitle, formatter = (val) => Math.round(val)
           </Tooltip>
         )}
       </div>
-      <div className="text-center">
-        <p className="text-3xl font-semibold text-gray-800">{formatter(value)}</p>
+      <div className="pt-2 pb-1 text-center">
+        <p className="text-2xl font-semibold text-gray-800">{formatter(value)}</p>
       </div>
     </CardBody>
   </Card>

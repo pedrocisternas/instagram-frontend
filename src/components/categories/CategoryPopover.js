@@ -3,7 +3,8 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
-  Input
+  Input,
+  Tooltip
 } from "@heroui/react";
 import { getCategoryStyle } from '@/utils/categoryStyles';
 
@@ -15,7 +16,8 @@ export default function CategoryPopover({
   newCategoryName,
   onNewCategoryNameChange,
   parentCategory,
-  type = 'categoría'
+  type = 'categoría',
+  className = ''
 }) {
   return (
     <Popover placement="bottom-start">
@@ -26,11 +28,23 @@ export default function CategoryPopover({
             getCategoryStyle(category, parentCategory)
           }`}
         >
-          {category ? category.name : `Sin ${type}`}
+          {category ? (
+            <Tooltip 
+              content={category.name} 
+              placement="top"
+              className="max-w-xs"
+            >
+              <span className="line-clamp-1 max-w-[150px]">
+                {category.name}
+              </span>
+            </Tooltip>
+          ) : (
+            `Sin ${type}`
+          )}
         </div>
       </PopoverTrigger>
       <PopoverContent>
-        <div className="p-2 w-64" onClick={(e) => e.stopPropagation()}>
+        <div className={`p-2 w-64 ${className}`} onClick={(e) => e.stopPropagation()}>
           <div className="mb-2 text-sm text-gray-600">
             Selecciona o crea una {type}
           </div>
@@ -51,7 +65,7 @@ export default function CategoryPopover({
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   getCategoryStyle(cat, parentCategory)
                 }`}>
-                  {cat.name}
+                  <span className="line-clamp-1 max-w-[150px]">{cat.name}</span>
                 </span>
               </div>
             ))}

@@ -8,7 +8,8 @@ import {
   TableRow,
   TableCell,
   Button,
-  Skeleton
+  Skeleton,
+  Tooltip
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
@@ -402,7 +403,21 @@ export default function Home() {
                   className="cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => router.push(`/post/${post.id}`)}
                 >
-                  <TableCell className="text-gray-900">{post.caption?.slice(0, 50) || 'No caption'}</TableCell>
+                  <TableCell className="text-gray-900">
+                    {post.caption 
+                      ? (
+                          <Tooltip 
+                            content={post.caption} 
+                            placement="top"
+                            className="max-w-xs"
+                          >
+                            <span className="cursor-help line-clamp-1">
+                              {post.caption}
+                            </span>
+                          </Tooltip>
+                        )
+                      : 'No caption'}
+                  </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       getMediaTypeStyle(post.media_type)
