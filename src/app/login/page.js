@@ -22,7 +22,7 @@ export default function LoginPage() {
             <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
                 <div className="text-center">
                     <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-                        Instagram Analytics
+                        Piru Metrics
                     </h2>
                     <p className="mt-2 text-sm text-gray-600">
                         {isAuthEnabled 
@@ -42,7 +42,7 @@ export default function LoginPage() {
                                 </div>
                                 <div className="relative flex justify-center text-sm">
                                     <span className="px-2 bg-white text-gray-500">
-                                        O continúa con
+                                        O
                                     </span>
                                 </div>
                             </div>

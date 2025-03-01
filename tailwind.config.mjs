@@ -17,6 +17,10 @@ export default {
           DEFAULT: '#a855f7', // bg-purple-500
           hover: '#9333ea',   // bg-purple-600
         },
+        facebook: {
+          DEFAULT: '#1877F2', // bg-blue-500
+          hover: '#165ED0',   // bg-blue-600
+        },
         // Mantener los colores para tipos de media
         mediaType: {
           reel: {
