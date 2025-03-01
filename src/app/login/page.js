@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import LoginButton from '@/components/auth/LoginButton';
+import EmailLoginButton from '@/components/auth/EmailLoginButton';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -32,7 +33,22 @@ export default function LoginPage() {
                 </div>
 
                 <div className="mt-8 space-y-6">
-                    <LoginButton />
+                    {isAuthEnabled && (
+                        <>
+                            <EmailLoginButton />
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-gray-300"></div>
+                                </div>
+                                <div className="relative flex justify-center text-sm">
+                                    <span className="px-2 bg-white text-gray-500">
+                                        O continúa con
+                                    </span>
+                                </div>
+                            </div>
+                            <LoginButton />
+                        </>
+                    )}
                 </div>
             </div>
         </div>

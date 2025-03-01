@@ -16,9 +16,37 @@ export const authService = {
         }
     },
 
-    // Iniciar sesión (redirige a Facebook)
-    login: () => {
+    // Iniciar sesión con Facebook (redirige a Facebook)
+    loginWithFacebook: () => {
         window.location.href = `${APP_CONFIG.API_URL}${AUTH_CONFIG.LOGIN_URL}`;
+    },
+
+    // Iniciar sesión con email (redirige como Facebook)
+    loginWithEmail: async (email, password) => {
+        try {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `${APP_CONFIG.API_URL}${AUTH_CONFIG.EMAIL_LOGIN_URL}`;
+
+            const emailInput = document.createElement('input');
+            emailInput.type = 'hidden';
+            emailInput.name = 'email';
+            emailInput.value = email;
+
+            const passwordInput = document.createElement('input');
+            passwordInput.type = 'hidden';
+            passwordInput.name = 'password';
+            passwordInput.value = password;
+
+            form.appendChild(emailInput);
+            form.appendChild(passwordInput);
+            document.body.appendChild(form);
+
+            form.submit();
+        } catch (error) {
+            console.error('Error during email login:', error);
+            throw error;
+        }
     },
 
     // Cerrar sesión

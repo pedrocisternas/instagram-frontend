@@ -7,6 +7,7 @@ export const useAuthStore = create((set) => ({
     authState: AUTH_CONFIG.AUTH_STATES.LOADING,
     user: null,
     isAuthEnabled: true,
+    authError: null,
 
     // Acciones
     initialize: async () => {
@@ -25,7 +26,8 @@ export const useAuthStore = create((set) => ({
                     ? AUTH_CONFIG.AUTH_STATES.AUTHENTICATED 
                     : AUTH_CONFIG.AUTH_STATES.UNAUTHENTICATED,
                 isAuthEnabled: status.authSystem === 'enabled',
-                user: status.user
+                user: status.user,
+                authError: null
             });
             console.log('Auth store updated with user:', status.user?.id);
         } catch (error) {
@@ -33,13 +35,28 @@ export const useAuthStore = create((set) => ({
             set({ 
                 authState: AUTH_CONFIG.AUTH_STATES.UNAUTHENTICATED,
                 isAuthEnabled: true,
-                user: null
+                user: null,
+                authError: 'Error initializing authentication'
             });
         }
     },
 
-    login: () => {
-        authService.login();
+    loginWithFacebook: () => {
+        authService.loginWithFacebook();
+    },
+
+    loginWithEmail: async (email, password) => {
+        try {
+            set({ authError: null });
+            await authService.loginWithEmail(email, password);
+            // La redirección la manejará el servidor
+            // No necesitamos devolver nada aquí
+        } catch (error) {
+            console.error('Login error:', error);
+            set({ 
+                authError: error.message || 'Error during login'
+            });
+        }
     },
 
     logout: async () => {
@@ -48,10 +65,16 @@ export const useAuthStore = create((set) => ({
             set({ 
                 authState: AUTH_CONFIG.AUTH_STATES.UNAUTHENTICATED,
                 user: null,
-                isAuthEnabled: true
+                isAuthEnabled: true,
+                authError: null
             });
         } catch (error) {
             console.error('Error during logout:', error);
+            set({ 
+                authError: 'Error during logout'
+            });
         }
-    }
+    },
+
+    clearError: () => set({ authError: null })
 }));

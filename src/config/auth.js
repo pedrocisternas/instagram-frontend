@@ -2,6 +2,7 @@ export const AUTH_CONFIG = {
     // Endpoints
     AUTH_STATUS_URL: '/auth/status',
     LOGIN_URL: '/auth/facebook',
+    EMAIL_LOGIN_URL: '/auth/login',
     LOGOUT_URL: '/auth/logout',
     
     // Rutas de la aplicación
@@ -14,5 +15,11 @@ export const AUTH_CONFIG = {
         LOADING: 'loading',
         AUTHENTICATED: 'authenticated',
         UNAUTHENTICATED: 'unauthenticated'
+    },
+
+    // Tipos de autenticación
+    AUTH_TYPES: {
+        FACEBOOK: 'facebook',
+        EMAIL: 'invited'
     }
 };

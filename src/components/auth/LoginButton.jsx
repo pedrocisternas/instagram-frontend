@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/store/auth';
 
 export default function LoginButton() {
-    const { login, isAuthEnabled, authState } = useAuthStore();
+    const { loginWithFacebook, isAuthEnabled, authState } = useAuthStore();
 
     if (!isAuthEnabled) {
         return null;
@@ -11,7 +11,7 @@ export default function LoginButton() {
 
     return (
         <button
-            onClick={login}
+            onClick={loginWithFacebook}
             disabled={authState === 'loading'}
             className={`
                 w-full flex justify-center py-2 px-4 border border-transparent rounded-md
