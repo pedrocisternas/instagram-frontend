@@ -93,18 +93,18 @@ export default function MetricsPanel({ timeRange, metrics }) {
   });
 
   return (
-    <div className="grid grid-cols-3 gap-6">
+    <div className="grid grid-cols-3 gap-4">
       {metricsData.map((metric, index) => (
         <Card key={index}>
-          <CardBody className="flex flex-col p-6">
-            <div className="text-gray-600 text-center mb-2">{metric.label}</div>
-            <div className="text-3xl font-bold text-center mb-4">
+          <CardBody className="flex flex-col p-4">
+            <div className="text-gray-600 text-center mb-1 text-sm">{metric.label}</div>
+            <div className="text-2xl font-bold text-center mb-2">
               {metric.formatter(metric.value)}
             </div>
-            <div className="space-y-2">
-              <div className={`bg-gray-50 rounded-lg p-2 ${apiTimeRange === 'all' ? 'invisible' : ''}`}>
+            <div className="space-y-1.5">
+              <div className={`bg-gray-50 rounded-lg p-1.5 ${apiTimeRange === 'all' ? 'invisible' : ''}`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">vs periodo anterior</span>
+                  <span className="text-xs text-gray-600">vs periodo anterior</span>
                   <CompactMetricDiff 
                     diff={metric.vsPrevious.diff} 
                     baseValue={metric.vsPrevious.baseValue}
@@ -112,9 +112,9 @@ export default function MetricsPanel({ timeRange, metrics }) {
                   />
                 </div>
               </div>
-              <div className={`bg-gray-50 rounded-lg p-2 ${apiTimeRange === 'all' ? 'invisible' : ''}`}>
+              <div className={`bg-gray-50 rounded-lg p-1.5 ${apiTimeRange === 'all' ? 'invisible' : ''}`}>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">vs promedio histórico</span>
+                  <span className="text-xs text-gray-600">vs promedio histórico</span>
                   <CompactMetricDiff 
                     diff={metric.vsHistorical?.diff} 
                     baseValue={metric.vsHistorical?.baseValue}
