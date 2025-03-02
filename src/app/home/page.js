@@ -190,12 +190,12 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
     <AuthGuard>
       <main className="p-8 bg-gray-50">
         {/* Solo los tabs */}
-        <div className="mb-6">
+        <div className="mb-3">
           <Tabs 
             selectedKey={timeRange} 
             onSelectionChange={setTimeRange}
-            className="justify-center"
-            size="md"
+            className="justify-start"
+            size="sm"
             variant="solid"
             color="secondary"
             classNames={{
@@ -209,9 +209,9 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
         </div>
 
         {/* Contenedor principal */}
-        <div className="grid grid-cols-5 gap-6 mb-8">
-          {/* Contenedor izquierdo (3/5) */}
-          <div className="col-span-3 space-y-6">
+        <div className="grid grid-cols-8 gap-6 mb-8">
+          {/* Contenedor izquierdo (5/8) */}
+          <div className="col-span-5 space-y-6">
             {/* Panel superior */}
             <div>
               <MetricsPanel 
@@ -243,8 +243,8 @@ export default function HomePage({ initialPosts, initialCategories, initialSubca
             </div>
           </div>
 
-          {/* Contenedor derecho (2/5) */}
-          <div className="col-span-2 space-y-6">
+          {/* Contenedor derecho (3/8) */}
+          <div className="col-span-3 space-y-6">
             {/* Gráfico de distribución */}
             <ContentDistribution 
               posts={filteredPosts}
