@@ -41,6 +41,9 @@ export default function PostPage() {
     transcript: null
   });
 
+  // Agregar este nuevo estado para el feedback de copiado
+  const [copied, setCopied] = useState(false);
+
   // 2. Efecto de autenticación - debe ser el primer useEffect
   useEffect(() => {
     if (authState === 'unauthenticated') {
@@ -110,6 +113,36 @@ export default function PostPage() {
 
     generatePostTranscript();
   }, [details.post?.id, user?.username, details.transcript, details.transcriptionError]);
+
+  // Agregar este efecto para controlar el scroll de la transcripción
+  useEffect(() => {
+    // Función para resetear el scroll del popover de transcripción
+    const resetTranscriptScroll = () => {
+      const transcriptElement = document.getElementById('transcript-content');
+      if (transcriptElement) {
+        transcriptElement.scrollTop = 0;
+      }
+    };
+    
+    // Observar cambios en el DOM para detectar cuando aparece el popover
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+          const transcriptElement = document.getElementById('transcript-content');
+          if (transcriptElement) {
+            transcriptElement.scrollTop = 0;
+            observer.disconnect();
+          }
+        }
+      });
+    });
+    
+    // Configurar el observador
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Limpiar
+    return () => observer.disconnect();
+  }, [details.transcript]);
 
   const handleAssignCategory = async (categoryId, postId) => {
     const previousDetails = { ...details };
@@ -248,6 +281,54 @@ export default function PostPage() {
     }
   };
 
+  // Función para formatear el tiempo de transcripción sin decimales
+  const formatTranscriptTime = (timeString) => {
+    if (!timeString) return '';
+    
+    // Primero removemos los decimales
+    const withoutDecimals = timeString.split('.')[0];
+    
+    // Ahora dividimos en minutos y segundos
+    const parts = withoutDecimals.split(':');
+    if (parts.length === 2) {
+      const minutes = parts[0];
+      const seconds = parts[1];
+      
+      // Agregamos un cero inicial a los segundos si es necesario
+      const paddedSeconds = seconds.length === 1 ? `0${seconds}` : seconds;
+      
+      // Devolvemos el tiempo formateado
+      return `${minutes}:${paddedSeconds}`;
+    }
+    
+    return withoutDecimals; // Devolver el original sin decimales si no tiene formato MM:SS
+  };
+
+  // Agregar esta función para copiar al portapapeles
+  const copyTranscriptToClipboard = () => {
+    if (!details.transcript) return;
+    
+    // Crear el texto formateado para copiar
+    let textToCopy = '';
+    
+    if (details.transcript.segments?.length > 0) {
+      textToCopy = details.transcript.segments.map(segment => 
+        `${formatTranscriptTime(segment.startTime)} - ${formatTranscriptTime(segment.endTime)}: ${segment.text}`
+      ).join('\n');
+    } else if (details.transcript.full_text) {
+      textToCopy = details.transcript.full_text;
+    }
+    
+    // Copiar al portapapeles
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        setCopied(true);
+        // Resetear el estado después de 2 segundos
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => console.error('Error al copiar: ', err));
+  };
+
   return (
     <main className="p-8 bg-gray-50 min-h-screen">
       <div className="container mx-auto">
@@ -355,7 +436,11 @@ export default function PostPage() {
                       <p className="text-sm text-gray-600 mb-2">Transcripción</p>
                       <div className="min-h-[28px] flex items-center">
                         {details.transcript ? (
-                          <Popover placement="bottom-start" showArrow>
+                          <Popover 
+                            placement="bottom-start" 
+                            showArrow
+                            offset={10}
+                          >
                             <PopoverTrigger>
                               <Button 
                                 color="secondary" 
@@ -366,21 +451,36 @@ export default function PostPage() {
                                 Ver transcripción
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-96 max-h-96 overflow-y-auto p-4">
-                              {details.transcript.segments?.length > 0 ? (
-                                <div className="space-y-2">
-                                  {details.transcript.segments.map((segment, index) => (
-                                    <div key={index} className="text-sm text-gray-600">
-                                      <span className="font-medium text-gray-500">{segment.startTime} - {segment.endTime}:</span>
-                                      <span className="ml-2">{segment.text}</span>
+                            <PopoverContent className="w-96 p-0">
+                              <div className="relative">
+                                <Button
+                                  size="sm"
+                                  color="secondary"
+                                  variant="flat"
+                                  className="absolute right-2 top-2 px-2 py-1 h-7 z-10"
+                                  onClick={copyTranscriptToClipboard}
+                                >
+                                  {copied ? "¡Copiado!" : "Copiar"}
+                                </Button>
+                                <div id="transcript-content" className="max-h-96 overflow-y-auto p-4 pt-10">
+                                  {details.transcript.segments?.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {details.transcript.segments.map((segment, index) => (
+                                        <div key={index} className="text-sm text-gray-600">
+                                          <span className="font-medium text-gray-500">
+                                            {formatTranscriptTime(segment.startTime)} - {formatTranscriptTime(segment.endTime)}:
+                                          </span>
+                                          <span className="ml-2">{segment.text}</span>
+                                        </div>
+                                      ))}
                                     </div>
-                                  ))}
+                                  ) : (
+                                    <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                                      {details.transcript.full_text}
+                                    </div>
+                                  )}
                                 </div>
-                              ) : (
-                                <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                                  {details.transcript.full_text}
-                                </div>
-                              )}
+                              </div>
                             </PopoverContent>
                           </Popover>
                         ) : isTranscribing ? (
