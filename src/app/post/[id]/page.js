@@ -414,6 +414,7 @@ export default function PostPage() {
                             categories={categories}
                             onAssignCategory={(categoryId) => handleAssignCategory(categoryId, post.id)}
                             type="categoría"
+                            disableTooltip={true}
                           />
                         </div>
                       </div>
@@ -426,6 +427,7 @@ export default function PostPage() {
                             onAssignCategory={(categoryId) => handleAssignSubcategory(categoryId, post.id)}
                             parentCategory={currentCategory}
                             type="subcategoría"
+                            disableTooltip={true}
                           />
                         </div>
                       </div>

@@ -383,6 +383,30 @@ export default function Home() {
     }
   }, [totalPages, page]);
 
+  // Add this helper function before the return statement
+  const sanitizeCaption = (caption) => {
+    if (!caption) return '';
+    
+    // First, create a text node to ensure all HTML is properly escaped
+    const div = document.createElement('div');
+    div.textContent = caption;
+    let sanitized = div.innerHTML;
+    
+    // Additional handling for URLs to prevent tooltip parsing issues
+    // Replace spaces with non-breaking spaces in URLs to help preserve format
+    sanitized = sanitized.replace(/(https?:\/\/[^\s]+)/g, (url) => {
+      // Encode problematic characters in URLs
+      return url
+        .replace(/&/g, '&amp;')
+        .replace(/\?/g, '&#63;')
+        .replace(/=/g, '&#61;')
+        .replace(/%/g, '&#37;')
+        .replace(/\//g, '&#47;');
+    });
+    
+    return sanitized;
+  };
+
   // Modificar la lógica de loading
   if (authState === 'loading' || isInitialLoading) {
     return <DashboardSkeleton />;
@@ -485,9 +509,20 @@ export default function Home() {
                     {post.caption 
                       ? (
                           <Tooltip 
-                            content={post.caption} 
+                            content={
+                              <div style={{ 
+                                maxHeight: '100px', 
+                                overflow: 'auto', 
+                                whiteSpace: 'pre-wrap', 
+                                wordBreak: 'break-word' 
+                              }}>
+                                {sanitizeCaption(post.caption)}
+                              </div>
+                            }
                             placement="top"
                             className="max-w-xs"
+                            showArrow={true}
+                            closeDelay={0}
                           >
                             <span className="cursor-help line-clamp-1 block truncate">
                               {post.caption}

@@ -30,13 +30,13 @@ export default function CategoryPopover({
           onClick={(e) => {
             e.stopPropagation();
           }}
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer w-full ${
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer ${
             getCategoryStyle(category, parentCategory)
           }`}
         >
           {category ? (
             disableTooltip ? (
-              <span className="line-clamp-1 truncate max-w-full">
+              <span className="truncate">
                 {category.name}
               </span>
             ) : (
@@ -45,7 +45,7 @@ export default function CategoryPopover({
                 placement="top"
                 className="max-w-xs"
               >
-                <span className="line-clamp-1 truncate max-w-full">
+                <span className="truncate">
                   {category.name}
                 </span>
               </Tooltip>
@@ -75,10 +75,10 @@ export default function CategoryPopover({
                 role="menuitem"
                 aria-label={`Seleccionar ${type} ${cat.name}`}
               >
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-full ${
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                   getCategoryStyle(cat, parentCategory)
                 }`}>
-                  <span className="line-clamp-1 truncate max-w-full">{cat.name}</span>
+                  <span className="truncate">{cat.name}</span>
                 </span>
               </div>
             ))}
