@@ -434,6 +434,7 @@ export default function Home() {
                       newCategoryName={newCategoryName}
                       onNewCategoryNameChange={(value) => setNewCategoryName(value)}
                       type="categoría"
+                      disableTooltip={true}
                     />
                   </TableCell>
                   <TableCell>
@@ -447,6 +448,7 @@ export default function Home() {
                       parentCategory={categories.find(c => c.id === post.category_id)}
                       type="subcategoría"
                       className="min-w-[200px]"
+                      disableTooltip={true}
                     />
                   </TableCell>
                   <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>

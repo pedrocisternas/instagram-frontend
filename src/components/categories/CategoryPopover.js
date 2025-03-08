@@ -7,6 +7,7 @@ import {
   Tooltip
 } from "@heroui/react";
 import { getCategoryStyle } from '@/utils/categoryStyles';
+import { useState } from "react";
 
 export default function CategoryPopover({
   category,
@@ -17,27 +18,38 @@ export default function CategoryPopover({
   onNewCategoryNameChange,
   parentCategory,
   type = 'categoría',
-  className = ''
+  className = '',
+  disableTooltip = false
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <Popover placement="bottom-start">
+    <Popover placement="bottom-start" isOpen={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger>
         <div 
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer ${
             getCategoryStyle(category, parentCategory)
           }`}
         >
           {category ? (
-            <Tooltip 
-              content={category.name} 
-              placement="top"
-              className="max-w-xs"
-            >
+            disableTooltip ? (
               <span className="line-clamp-1 max-w-[150px]">
                 {category.name}
               </span>
-            </Tooltip>
+            ) : (
+              <Tooltip 
+                content={category.name} 
+                placement="top"
+                className="max-w-xs"
+              >
+                <span className="line-clamp-1 max-w-[150px]">
+                  {category.name}
+                </span>
+              </Tooltip>
+            )
           ) : (
             `Sin ${type}`
           )}
@@ -58,6 +70,7 @@ export default function CategoryPopover({
                 onClick={(e) => {
                   e.stopPropagation();
                   onAssignCategory(cat.id);
+                  setIsOpen(false);
                 }}
                 role="menuitem"
                 aria-label={`Seleccionar ${type} ${cat.name}`}
@@ -82,6 +95,7 @@ export default function CategoryPopover({
                 e.stopPropagation();
                 if (e.key === 'Enter' && newCategoryName.trim()) {
                   onCreateCategory();
+                  setIsOpen(false);
                 }
               }}
             />
