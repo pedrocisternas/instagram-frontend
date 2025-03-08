@@ -354,27 +354,27 @@ export default function Home() {
 
         <Table removeWrapper aria-label="Instagram posts table">
           <TableHeader>
-            <TableColumn width={300}>Caption</TableColumn>
-            <TableColumn width={100}>Tipo</TableColumn>
-            <TableColumn width={200}>Categoría</TableColumn>
-            <TableColumn width={200}>Subcategoría</TableColumn>
+            <TableColumn width="24.3%">Caption</TableColumn>
+            <TableColumn width="8%" align="center">Tipo</TableColumn>
+            <TableColumn width="11%" align="center">Categoría</TableColumn>
+            <TableColumn width="12%" align="center">Subcategoría</TableColumn>
             {[
-              { field: 'published_at', label: 'Fecha', width: 100 },
-              { field: 'published_at', label: 'Hora', width: 80 },
-              { field: 'views', label: 'Views', width: 100 },
-              { field: 'likes', label: 'Likes', width: 100 },
-              { field: 'saves', label: 'Saves', width: 100 },
-              { field: 'shares', label: 'Shares', width: 100 },
-              { field: 'comments', label: 'Comments', width: 100 }
+              { field: 'published_at', label: 'Fecha', width: "7%" },
+              { field: 'published_at', label: 'Hora', width: "6%" },
+              { field: 'views', label: 'Views', width: "6%" },
+              { field: 'likes', label: 'Likes', width: "6%" },
+              { field: 'saves', label: 'Saves', width: "6%" },
+              { field: 'shares', label: 'Shares', width: "6%" },
+              { field: 'comments', label: 'Comments', width: "6%" }
             ].map(({ field, label, width }) => (
               <TableColumn 
                 key={`${field}-${label}`}
                 width={width} 
-                align={field === 'published_at' ? 'start' : 'end'}
+                align="center"
                 className="cursor-pointer hover:bg-gray-100"
                 onClick={() => handleSort(field)}
               >
-                <div className={`flex items-center ${field === 'published_at' ? 'justify-start' : 'justify-end'} gap-1`}>
+                <div className="flex items-center justify-center gap-1">
                   {label}
                   {sortField === field && (
                     <span className="text-xs">
@@ -403,7 +403,7 @@ export default function Home() {
                   className="cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => router.push(`/post/${post.id}`)}
                 >
-                  <TableCell className="text-gray-900">
+                  <TableCell className="text-gray-900 max-w-0 w-[17.3%]">
                     {post.caption 
                       ? (
                           <Tooltip 
@@ -411,53 +411,56 @@ export default function Home() {
                             placement="top"
                             className="max-w-xs"
                           >
-                            <span className="cursor-help line-clamp-1">
+                            <span className="cursor-help line-clamp-1 block truncate">
                               {post.caption}
                             </span>
                           </Tooltip>
                         )
                       : 'No caption'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-[8%]">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       getMediaTypeStyle(post.media_type)
                     }`}>
                       {MEDIA_TYPES.find(type => type.value === post.media_type)?.label || post.media_type}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <CategoryPopover
-                      category={categories.find(c => c.id === post.category_id)}
-                      categories={categories}
-                      onCreateCategory={() => handleCreateCategory()}
-                      onAssignCategory={(categoryId) => handleAssignCategory(post.id, categoryId)}
-                      newCategoryName={newCategoryName}
-                      onNewCategoryNameChange={(value) => setNewCategoryName(value)}
-                      type="categoría"
-                      disableTooltip={true}
-                    />
+                  <TableCell className="w-[11%] max-w-0">
+                    <div className="truncate overflow-hidden text-ellipsis">
+                      <CategoryPopover
+                        category={categories.find(c => c.id === post.category_id)}
+                        categories={categories}
+                        onCreateCategory={() => handleCreateCategory()}
+                        onAssignCategory={(categoryId) => handleAssignCategory(post.id, categoryId)}
+                        newCategoryName={newCategoryName}
+                        onNewCategoryNameChange={(value) => setNewCategoryName(value)}
+                        type="categoría"
+                        disableTooltip={true}
+                      />
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <CategoryPopover
-                      category={subcategories.find(s => s.id === post.subcategory_id)}
-                      categories={subcategories.filter(sub => sub.category_id === post.category_id)}
-                      onCreateCategory={() => handleCreateSubcategory(post.category_id)}
-                      onAssignCategory={(subcategoryId) => handleAssignSubcategory(post.id, subcategoryId)}
-                      newCategoryName={newSubcategoryName}
-                      onNewCategoryNameChange={(value) => setNewSubcategoryName(value)}
-                      parentCategory={categories.find(c => c.id === post.category_id)}
-                      type="subcategoría"
-                      className="min-w-[200px]"
-                      disableTooltip={true}
-                    />
+                  <TableCell className="w-[11%] max-w-0">
+                    <div className="truncate overflow-hidden text-ellipsis">
+                      <CategoryPopover
+                        category={subcategories.find(s => s.id === post.subcategory_id)}
+                        categories={subcategories.filter(sub => sub.category_id === post.category_id)}
+                        onCreateCategory={() => handleCreateSubcategory(post.category_id)}
+                        onAssignCategory={(subcategoryId) => handleAssignSubcategory(post.id, subcategoryId)}
+                        newCategoryName={newSubcategoryName}
+                        onNewCategoryNameChange={(value) => setNewSubcategoryName(value)}
+                        parentCategory={categories.find(c => c.id === post.category_id)}
+                        type="subcategoría"
+                        disableTooltip={true}
+                      />
+                    </div>
                   </TableCell>
-                  <TableCell className="text-gray-900">{formatDate(post.published_at)}</TableCell>
-                  <TableCell className="text-gray-900">{formatTime(post.published_at)}</TableCell>
-                  <TableCell align="right">{post.views?.toLocaleString()}</TableCell>
-                  <TableCell align="right">{post.likes?.toLocaleString()}</TableCell>
-                  <TableCell align="right">{post.saves?.toLocaleString()}</TableCell>
-                  <TableCell align="right">{post.shares?.toLocaleString()}</TableCell>
-                  <TableCell align="right">{post.comments?.toLocaleString()}</TableCell>
+                  <TableCell className="text-gray-900 w-[8%]">{formatDate(post.published_at)}</TableCell>
+                  <TableCell className="text-gray-900 w-[6%]">{formatTime(post.published_at)}</TableCell>
+                  <TableCell align="right" className="w-[8%]">{post.views?.toLocaleString()}</TableCell>
+                  <TableCell align="right" className="w-[8%]">{post.likes?.toLocaleString()}</TableCell>
+                  <TableCell align="right" className="w-[8%]">{post.saves?.toLocaleString()}</TableCell>
+                  <TableCell align="right" className="w-[8%]">{post.shares?.toLocaleString()}</TableCell>
+                  <TableCell align="right" className="w-[8%]">{post.comments?.toLocaleString()}</TableCell>
                 </TableRow>
               ))
             )}
