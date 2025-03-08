@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Table,
   TableHeader,
@@ -58,6 +58,9 @@ export default function Home() {
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [selectedSubcategories, setSelectedSubcategories] = useState(new Set([]));
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [postsPerPage, setPostsPerPage] = useState(APP_CONFIG.POSTS_PER_PAGE);
+  const tableRef = useRef(null);
+  const mainContainerRef = useRef(null);
 
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
@@ -117,6 +120,68 @@ export default function Home() {
     });
   }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories]);
 
+  // Calculate posts per page based on window height
+  const calculatePostsPerPage = () => {
+    if (typeof window === 'undefined' || !tableRef.current || !mainContainerRef.current) return;
+    
+    // Get available height (viewport height minus other elements)
+    const viewportHeight = window.innerHeight;
+    
+    // Calculate space taken by other elements (title, filters, pagination, etc.)
+    const tableHeaderHeight = 46; // Even smaller header height
+    const paginationHeight = 44; // Even smaller pagination controls height
+    const statsHeight = 100; // Even smaller stats panel height
+    const titleAndFiltersHeight = 50; // Even smaller title and filters height
+    const marginAndPadding = 20; // Minimal margins and padding
+    
+    const otherElementsHeight = tableHeaderHeight + paginationHeight + statsHeight + 
+                               titleAndFiltersHeight + marginAndPadding;
+    
+    // Calculate available height for rows
+    const availableHeight = viewportHeight - otherElementsHeight;
+    
+    // Use an even smaller row height
+    const rowHeight = 40; // Very compact row height
+    
+    // Calculate rows plus add extra to use more space
+    const calculatedRows = Math.floor(availableHeight / rowHeight);
+    const newPostsPerPage = Math.max(3, calculatedRows);
+    
+    // More detailed logging
+    console.log({
+      viewportHeight,
+      otherElementsHeight,
+      availableHeight,
+      rowHeight,
+      calculatedRows,
+      newPostsPerPage
+    });
+    
+    setPostsPerPage(newPostsPerPage);
+  };
+  
+  // Add resize listener to recalculate on window resize
+  useEffect(() => {
+    calculatePostsPerPage();
+    
+    const handleResize = () => {
+      calculatePostsPerPage();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Recalculate when the component is fully rendered
+  useEffect(() => {
+    // Small delay to ensure DOM is fully rendered
+    const timer = setTimeout(() => {
+      calculatePostsPerPage();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [allPosts.length, filteredPosts.length]);
+
   // Usar filteredPosts para la paginación
   const sortedAndPaginatedPosts = useMemo(() => {
     // Ordenar los posts filtrados
@@ -137,11 +202,11 @@ export default function Home() {
       return sortDirection === 'desc' ? bNum - aNum : aNum - bNum;
     });
 
-    // Paginar los resultados filtrados y ordenados
-    const start = (page - 1) * APP_CONFIG.POSTS_PER_PAGE;
-    const end = start + APP_CONFIG.POSTS_PER_PAGE;
+    // Paginar usando postsPerPage dinámico
+    const start = (page - 1) * postsPerPage;
+    const end = start + postsPerPage;
     return sorted.slice(start, end);
-  }, [filteredPosts, page, sortField, sortDirection]);
+  }, [filteredPosts, page, sortField, sortDirection, postsPerPage]);
 
   // Manejar ordenamiento
   const handleSort = (field) => {
@@ -305,6 +370,19 @@ export default function Home() {
     }
   }, [authState, router]);
 
+  // Add a memoized value for total pages that updates when postsPerPage changes
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredPosts.length / postsPerPage);
+  }, [filteredPosts.length, postsPerPage]);
+
+  // When postsPerPage changes, we need to adjust the current page if needed
+  useEffect(() => {
+    // If the current page is now beyond the total pages, adjust it
+    if (page > totalPages && totalPages > 0) {
+      handlePageChange(totalPages);
+    }
+  }, [totalPages, page]);
+
   // Modificar la lógica de loading
   if (authState === 'loading' || isInitialLoading) {
     return <DashboardSkeleton />;
@@ -314,7 +392,7 @@ export default function Home() {
 
   return (
     <AuthGuard>
-      <main className="p-8 bg-gray-50">
+      <main className="p-8 bg-gray-50" ref={mainContainerRef}>
         <div className="flex justify-between items-start mb-6">
           <div className="flex gap-2">
           <h1 className="text-2xl font-bold">Publicaciones</h1>
@@ -352,20 +430,20 @@ export default function Home() {
         {/* Add the stats panel here, using filteredPosts */}
         <StatsSummaryPanel posts={filteredPosts} />
 
-        <Table removeWrapper aria-label="Instagram posts table">
+        <Table removeWrapper aria-label="Instagram posts table" ref={tableRef}>
           <TableHeader>
-            <TableColumn width="24.3%">Caption</TableColumn>
+            <TableColumn width="17.3%">Caption</TableColumn>
             <TableColumn width="8%" align="center">Tipo</TableColumn>
             <TableColumn width="11%" align="center">Categoría</TableColumn>
-            <TableColumn width="12%" align="center">Subcategoría</TableColumn>
+            <TableColumn width="11%" align="center">Subcategoría</TableColumn>
             {[
-              { field: 'published_at', label: 'Fecha', width: "7%" },
+              { field: 'published_at', label: 'Fecha', width: "8%" },
               { field: 'published_at', label: 'Hora', width: "6%" },
-              { field: 'views', label: 'Views', width: "6%" },
-              { field: 'likes', label: 'Likes', width: "6%" },
-              { field: 'saves', label: 'Saves', width: "6%" },
-              { field: 'shares', label: 'Shares', width: "6%" },
-              { field: 'comments', label: 'Comments', width: "6%" }
+              { field: 'views', label: 'Views', width: "8%" },
+              { field: 'likes', label: 'Likes', width: "8%" },
+              { field: 'saves', label: 'Saves', width: "8%" },
+              { field: 'shares', label: 'Shares', width: "8%" },
+              { field: 'comments', label: 'Comments', width: "8%" }
             ].map(({ field, label, width }) => (
               <TableColumn 
                 key={`${field}-${label}`}
@@ -477,13 +555,13 @@ export default function Home() {
           </Button>
           
           <span className="text-sm text-gray-700">
-            Página {page} de {Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
+            Página {page} de {totalPages}
           </span>
           
           <Button
             color="primary"
             onPress={() => handlePageChange(page + 1)}
-            isDisabled={page >= Math.ceil(filteredPosts.length / APP_CONFIG.POSTS_PER_PAGE)}
+            isDisabled={page >= totalPages}
           >
             Siguiente
           </Button>
