@@ -18,7 +18,8 @@ export default function CategoryPopover({
   onNewCategoryNameChange,
   parentCategory,
   type = 'categoría',
-  className = ''
+  className = '',
+  disableTooltip = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -34,15 +35,21 @@ export default function CategoryPopover({
           }`}
         >
           {category ? (
-            <Tooltip 
-              content={category.name} 
-              placement="top"
-              className="max-w-xs"
-            >
+            disableTooltip ? (
               <span className="line-clamp-1 max-w-[150px]">
                 {category.name}
               </span>
-            </Tooltip>
+            ) : (
+              <Tooltip 
+                content={category.name} 
+                placement="top"
+                className="max-w-xs"
+              >
+                <span className="line-clamp-1 max-w-[150px]">
+                  {category.name}
+                </span>
+              </Tooltip>
+            )
           ) : (
             `Sin ${type}`
           )}
