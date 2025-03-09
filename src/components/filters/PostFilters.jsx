@@ -2,6 +2,7 @@ import { Button } from "@heroui/react";
 import MediaTypeFilter from './MediaTypeFilter';
 import CategoryFilter from './CategoryFilter';
 import SubcategoryFilter from './SubcategoryFilter';
+import DateRangeFilter from './DateRangeFilter';
 
 export default function PostFilters({ 
   selectedTypes,
@@ -11,16 +12,19 @@ export default function PostFilters({
   subcategories,
   sortField,
   sortDirection,
+  selectedDays,
   onTypeChange,
   onCategoryChange,
   onSubcategoryChange,
+  onDaysChange,
   onSortReset
 }) {
   const hasFilters = selectedTypes.size > 0 || 
     selectedCategories.size > 0 || 
     selectedSubcategories.size > 0 ||
     sortField !== 'published_at' || 
-    sortDirection !== 'desc';
+    sortDirection !== 'desc' ||
+    selectedDays !== 0;
 
   return (
     <div className="flex gap-2 items-center">
@@ -32,12 +36,18 @@ export default function PostFilters({
             onTypeChange(new Set([]));
             onCategoryChange(new Set([]));
             onSubcategoryChange(new Set([]));
+            onDaysChange(0);
             onSortReset();
           }}
         >
           Limpiar Filtros
         </Button>
       )}
+
+      <DateRangeFilter
+        selectedDays={selectedDays}
+        onDaysChange={onDaysChange}
+      />
 
       <MediaTypeFilter 
         selectedTypes={selectedTypes}
