@@ -10,7 +10,7 @@ import {
   assignSubcategoryToPost,
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon, VideoCameraIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
 import { generateVideoAnalysis } from '@/services/api/videoAnalysis';
@@ -34,6 +34,8 @@ export default function PostPage() {
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
   const [needsInsightsUpdate, setNeedsInsightsUpdate] = useState(false);
   const [comparisonType, setComparisonType] = useState('category');
+  const [showInsights, setShowInsights] = useState(false);
+  const [videoAnalysis, setVideoAnalysis] = useState(null);
   const [details, setDetails] = useState({
     post: null,
     currentCategory: null,
@@ -292,10 +294,28 @@ export default function PostPage() {
       }
       
       setIsAnalyzingVideo(true);
-      await generateVideoAnalysis(post.id, user.username);
-      console.log('Análisis de video completado');
-    } catch (error) {
-      console.error('Error al analizar video:', error);
+      try {
+        const result = await generateVideoAnalysis(post.id, user.username);
+        setVideoAnalysis(result);
+        console.log('Análisis de video completado', result);
+      } catch (error) {
+        console.error('Error al analizar video:', error);
+        
+        // Mostrar mensaje específico para videos demasiado grandes
+        if (error.message && error.message.includes('VIDEO_TOO_LARGE')) {
+          setVideoAnalysis({
+            error: 'VIDEO_TOO_LARGE',
+            description: 'El video es demasiado grande para ser procesado por Gemini. El límite es de aproximadamente 30MB.',
+            number_of_shots: null,
+            text_types: [],
+            has_call_to_action: false,
+            total_duration: null,
+            audio_types: [],
+            seconds_without_audio: null,
+            key_elements: []
+          });
+        }
+      }
     } finally {
       setIsAnalyzingVideo(false);
     }
@@ -692,54 +712,154 @@ export default function PostPage() {
               </div>
             </div>
 
-            {/* Columna 3 - Solo Insights */}
+            {/* Columna 3 - Análisis de Video (reemplaza Insights) */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Insights</h3>
-                {needsInsightsUpdate && insights && (
-                  <Button
-                    color="secondary"
-                    size="sm"
-                    onClick={handleGenerateInsights}
-                    disabled={isLoadingInsights}
-                    startContent={isLoadingInsights && (
-                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    )}
-                  >
-                    Actualizar
-                  </Button>
-                )}
+                <h3 className="text-lg font-semibold">Análisis de Video</h3>
               </div>
-
-              <div className="relative h-full">
-                {/* Estado de Carga para los Insights */}
-                {isLoadingInsights && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
-                    <div className="relative">
-                      <div className="w-20 h-20">
-                        <CircularProgress
-                          size="lg"
-                          color="secondary"
-                          isIndeterminate
-                          className="absolute inset-0"
-                        />
+              
+              <div className="relative h-full overflow-auto">
+                {isAnalyzingVideo ? (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <CircularProgress className="mb-4" />
+                    <p className="text-gray-500">Analizando video...</p>
+                  </div>
+                ) : videoAnalysis ? (
+                  <div className="space-y-4">
+                    {videoAnalysis.error === 'VIDEO_TOO_LARGE' ? (
+                      <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+                        <h4 className="text-sm font-semibold mb-2 text-red-700">Error: Video demasiado grande</h4>
+                        <p className="text-sm text-red-600">{videoAnalysis.description}</p>
+                        <p className="text-xs text-red-500 mt-2">
+                          Intenta con un video más pequeño o de menor duración para poder analizarlo.
+                        </p>
                       </div>
-                    </div>
-                    <div className="mt-6 text-center">
-                      <LoadingMessage />
-                    </div>
+                    ) : (
+                      <>
+                        <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                          <h4 className="text-sm font-semibold mb-2">Descripción</h4>
+                          <p className="text-sm text-gray-700">{videoAnalysis.description}</p>
+                        </div>
+                        
+                        {videoAnalysis.number_of_shots && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Número de tomas</h4>
+                            <p className="text-sm text-gray-700">{videoAnalysis.number_of_shots}</p>
+                          </div>
+                        )}
+                        
+                        {videoAnalysis.audio_types && videoAnalysis.audio_types.length > 0 && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Tipos de audio</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.audio_types.map((type, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {videoAnalysis.text_types && videoAnalysis.text_types.length > 0 && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Tipos de texto</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.text_types.map((type, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {videoAnalysis.key_elements && videoAnalysis.key_elements.length > 0 && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Elementos clave</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.key_elements.map((element, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                                  {element}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                          <h4 className="text-sm font-semibold mb-2">JSON completo</h4>
+                          <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-[200px]">
+                            {JSON.stringify(videoAnalysis, null, 2)}
+                          </pre>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    {post?.media_type === 'VIDEO' ? (
+                      <>
+                        <VideoCameraIcon className="w-12 h-12 mb-4 text-gray-300" />
+                        <p>Haz clic en "Analizar Video" para obtener un análisis detallado</p>
+                      </>
+                    ) : (
+                      <>
+                        <NoSymbolIcon className="w-12 h-12 mb-4 text-gray-300" />
+                        <p>El análisis de video solo está disponible para posts de tipo VIDEO</p>
+                      </>
+                    )}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                {/* Contenido de Insights */}
-                {!isLoadingInsights && (insights ? (
-                  <div className="space-y-6 transition-all duration-300 overflow-auto h-[calc(100vh-260px)] pr-1">
-                    {/* Summary Section */}
-                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                      <div className="flex items-center gap-4">
+      {/* Botón flotante para mostrar/ocultar Insights */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          onClick={() => setShowInsights(!showInsights)}
+          color="primary"
+          className="rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+        >
+          <SparklesIcon className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {/* Panel de Insights (oculto por defecto) */}
+      {showInsights && (
+        <div className="fixed bottom-0 right-0 left-0 bg-white shadow-lg rounded-t-xl z-40 transition-all duration-300 max-h-[80vh] overflow-auto">
+          <div className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Insights</h3>
+              <Button
+                onClick={() => setShowInsights(false)}
+                color="secondary"
+                size="sm"
+                className="rounded-full"
+              >
+                <ChevronUpIcon className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="relative">
+              {/* Estado de Carga para los Insights */}
+              {isLoadingInsights && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                  <CircularProgress className="mb-4" />
+                  <LoadingMessage />
+                </div>
+              )}
+
+              {/* Contenido de Insights */}
+              {!isLoadingInsights && (insights ? (
+                <div className="space-y-6 transition-all duration-300">
+                  {/* Summary Section */}
+                  <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                    <div className="flex items-center gap-4">
+                      {insights.summary && insights.summary.score ? (
                         <div className={`text-2xl ${
                           insights.summary.score >= 80 ? 'text-success' :
                           insights.summary.score >= 60 ? 'text-warning' :
@@ -747,18 +867,40 @@ export default function PostPage() {
                         }`}>
                           {insights.summary.score}
                         </div>
-                        <div>
+                      ) : null}
+                      <div className="flex-1">
+                        {insights.summary && insights.summary.status ? (
                           <h4 className="text-sm font-semibold">{insights.summary.status}</h4>
-                          <p className="text-sm text-gray-600">{insights.summary.quick_take}</p>
+                        ) : null}
+                        {insights.summary && insights.summary.quick_take ? (
+                          <p className="text-sm text-gray-700">{insights.summary.quick_take}</p>
+                        ) : (
+                          <p className="text-sm text-gray-700">{typeof insights.summary === 'string' ? insights.summary : 'Resumen no disponible'}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {insightsGeneratedAt ? `Generado ${formatDate(insightsGeneratedAt)}` : 'Recién generado'}
                         </div>
+                        <Button
+                          onClick={handleGenerateInsights}
+                          size="sm"
+                          color={needsInsightsUpdate ? "primary" : "secondary"}
+                          disabled={isLoadingInsights}
+                          className="text-xs"
+                        >
+                          {needsInsightsUpdate ? 'Actualizar' : 'Regenerar'}
+                        </Button>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Metrics Analysis */}
-                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                      <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
-                      <div className="space-y-4">
-                        {insights.metrics_analysis.highlights.map((highlight, index) => (
+                  {/* Metrics Analysis */}
+                  <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                    <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
+                    <div className="space-y-3">
+                      {insights.metrics_analysis && insights.metrics_analysis.highlights ? (
+                        insights.metrics_analysis.highlights.map((highlight, index) => (
                           <div key={index} className="flex items-center gap-3">
                             <div className={`text-xl ${
                               highlight.trend === 'up' ? 'text-success' :
@@ -775,48 +917,145 @@ export default function PostPage() {
                               <p className="text-sm text-gray-600">{highlight.insight}</p>
                             </div>
                           </div>
+                        ))
+                      ) : Array.isArray(insights.metrics_analysis) ? (
+                        insights.metrics_analysis.map((metric, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5"></div>
+                            <p className="text-sm text-gray-700 flex-1">{metric}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-600">No hay métricas destacadas disponibles</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Content Analysis */}
+                  <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                    <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
+                    {Array.isArray(insights.content_analysis) ? (
+                      <div className="space-y-3">
+                        {insights.content_analysis.map((content, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5"></div>
+                            <p className="text-sm text-gray-700 flex-1">{content}</p>
+                          </div>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Content Analysis */}
-                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                      <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
+                    ) : (
                       <p className="text-sm text-gray-600 whitespace-pre-wrap">
                         {insights.content_analysis}
                       </p>
-                    </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <div className="w-20 h-20 text-secondary mb-4">
-                      <MagnifyingGlassIcon className="w-full h-full" />
-                    </div>
-                    <p className="text-gray-600 text-center mb-4">
-                      No hay insights disponibles para este post.
-                    </p>
-                    <Button
-                      color="secondary"
-                      onClick={handleGenerateInsights}
-                      size="lg"
-                      disabled={isLoadingInsights}
-                    >
-                      {isLoadingInsights ? (
-                        <div className="flex items-center gap-2">
-                          <CircularProgress size="sm" color="current" />
-                          <span>Generando...</span>
+
+                  {/* Recommendations - solo mostrar si existen */}
+                  {insights.recommendations && (
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <h4 className="text-sm font-semibold mb-4">Recomendaciones</h4>
+                      {Array.isArray(insights.recommendations) ? (
+                        <div className="space-y-3">
+                          {insights.recommendations.map((recommendation, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5"></div>
+                              <p className="text-sm text-gray-700 flex-1">{recommendation}</p>
+                            </div>
+                          ))}
                         </div>
                       ) : (
-                        "Generar Insights"
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                          {insights.recommendations}
+                        </p>
                       )}
-                    </Button>
+                    </div>
+                  )}
+
+                  {/* Comparison - solo mostrar si existen las propiedades necesarias */}
+                  {(insights.category_comparison || insights.all_posts_comparison) && (
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-sm font-semibold">Comparación</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            size="xs"
+                            color={comparisonType === 'category' ? 'primary' : 'secondary'}
+                            onClick={() => setComparisonType('category')}
+                            disabled={!insights.category_comparison}
+                          >
+                            Categoría
+                          </Button>
+                          <Button
+                            size="xs"
+                            color={comparisonType === 'all' ? 'primary' : 'secondary'}
+                            onClick={() => setComparisonType('all')}
+                            disabled={!insights.all_posts_comparison}
+                          >
+                            Todos
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {comparisonType === 'category' && insights.category_comparison ? (
+                        <div className="space-y-3">
+                          {Array.isArray(insights.category_comparison) ? (
+                            insights.category_comparison.map((comparison, index) => (
+                              <div key={index} className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5"></div>
+                                <p className="text-sm text-gray-700 flex-1">{comparison}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {insights.category_comparison}
+                            </p>
+                          )}
+                        </div>
+                      ) : comparisonType === 'all' && insights.all_posts_comparison ? (
+                        <div className="space-y-3">
+                          {Array.isArray(insights.all_posts_comparison) ? (
+                            insights.all_posts_comparison.map((comparison, index) => (
+                              <div key={index} className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5"></div>
+                                <p className="text-sm text-gray-700 flex-1">{comparison}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {insights.all_posts_comparison}
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-20 h-20 text-secondary mb-4">
+                    <MagnifyingGlassIcon className="w-full h-full" />
                   </div>
-                ))}
-              </div>
+                  <p className="text-gray-500 mb-4">No hay insights disponibles para este post</p>
+                  <Button
+                    onClick={handleGenerateInsights}
+                    color="primary"
+                    disabled={isLoadingInsights}
+                  >
+                    {isLoadingInsights ? (
+                      <div className="flex items-center gap-2">
+                        <CircularProgress size="sm" color="current" />
+                        <span>Generando...</span>
+                      </div>
+                    ) : (
+                      "Generar Insights"
+                    )}
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }
@@ -824,44 +1063,34 @@ export default function PostPage() {
 // Modificar el componente LoadingMessage para recibir activeTab como prop
 function LoadingMessage() {
   const messages = ["Analizando métricas...", "Generando insights...", "Organizando insights...", "Procesando contenido..."];
-
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 3000);
-
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <p className="text-secondary-600 text-center animate-fade-in">
-      {messages[messageIndex]}
-    </p>
-  );
+  return <p className="text-gray-500 text-center">{messages[messageIndex]}</p>;
 }
 
 // Primero agregamos el componente (junto a LoadingMessage existente)
 function TranscriptLoadingMessage() {
   const messages = [
-    "Extrayendo audio...",
-    "Transcribiendo video..."
+    "Transcribiendo audio...",
+    "Procesando palabras...",
+    "Analizando contenido...",
+    "Generando transcripción...",
   ];
-
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 3000);
-
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <p className="text-secondary-600 text-xs animate-fade-in">
-      {messages[messageIndex]}
-    </p>
-  );
+  return <p className="text-gray-500 text-center">{messages[messageIndex]}</p>;
 }
