@@ -10,9 +10,10 @@ import {
   assignSubcategoryToPost,
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
+import { generateVideoAnalysis } from '@/services/api/videoAnalysis';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
 import { useAuthStore } from '@/store/auth';
@@ -27,6 +28,7 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isAnalyzingVideo, setIsAnalyzingVideo] = useState(false);
   const [insights, setInsights] = useState(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
@@ -281,6 +283,24 @@ export default function PostPage() {
     }
   };
 
+  // Función para manejar el análisis de video
+  const handleAnalyzeVideo = async () => {
+    try {
+      if (!user?.username) {
+        console.log('[PostPage] No username available yet, waiting...');
+        return;
+      }
+      
+      setIsAnalyzingVideo(true);
+      await generateVideoAnalysis(post.id, user.username);
+      console.log('Análisis de video completado');
+    } catch (error) {
+      console.error('Error al analizar video:', error);
+    } finally {
+      setIsAnalyzingVideo(false);
+    }
+  };
+
   // Función para formatear el tiempo de transcripción sin decimales
   const formatTranscriptTime = (timeString) => {
     if (!timeString) return '';
@@ -349,9 +369,26 @@ export default function PostPage() {
               </Tooltip>
             )}
           </div>
-          <Button color="secondary" onClick={() => router.back()}>
-            Volver
-          </Button>
+          <div className="flex items-center gap-2">
+            {post?.media_type === 'VIDEO' && (
+              <Button 
+                color="secondary" 
+                onClick={handleAnalyzeVideo} 
+                disabled={isAnalyzingVideo}
+                className="flex items-center gap-1"
+              >
+                {isAnalyzingVideo ? (
+                  <CircularProgress size="sm" className="mr-1" />
+                ) : (
+                  <VideoCameraIcon className="w-4 h-4" />
+                )}
+                {isAnalyzingVideo ? 'Analizando...' : 'Analizar Video'}
+              </Button>
+            )}
+            <Button color="secondary" onClick={() => router.back()}>
+              Volver
+            </Button>
+          </div>
         </div>
 
         {/* Contenedor principal - 3 columnas, centrado */}
