@@ -36,6 +36,7 @@ export default function PostPage() {
   const [comparisonType, setComparisonType] = useState('category');
   const [showInsights, setShowInsights] = useState(false);
   const [videoAnalysis, setVideoAnalysis] = useState(null);
+  const [videoAnalysisError, setVideoAnalysisError] = useState(null);
   const [details, setDetails] = useState({
     post: null,
     currentCategory: null,
@@ -118,7 +119,54 @@ export default function PostPage() {
     generatePostTranscript();
   }, [details.post?.id, user?.username, details.transcript, details.transcriptionError]);
 
-  // Agregar este efecto para controlar el scroll de la transcripción
+  // 5. Efecto para cargar automáticamente el análisis de video
+  useEffect(() => {
+    const loadVideoAnalysis = async () => {
+      // Solo ejecutar si:
+      // - El post existe
+      // - Es un video
+      // - Hay un usuario autenticado
+      // - No hay un análisis ya cargado o un error previo
+      if (!details.post?.id || 
+          details.post.media_type !== 'VIDEO' || 
+          !user?.username || 
+          videoAnalysis || 
+          videoAnalysisError) {
+        return;
+      }
+
+      try {
+        setIsAnalyzingVideo(true);
+        const result = await generateVideoAnalysis(details.post.id, user.username);
+        setVideoAnalysis(result);
+        console.log('Análisis de video cargado automáticamente');
+      } catch (error) {
+        console.error('Error al cargar análisis de video:', error);
+        setVideoAnalysisError(error.message);
+        
+        // Manejar error específico de video demasiado grande
+        if (error.message && error.message.includes('VIDEO_TOO_LARGE')) {
+          setVideoAnalysis({
+            error: 'VIDEO_TOO_LARGE',
+            description: 'El video es demasiado grande para ser procesado por Gemini. El límite es de aproximadamente 30MB.',
+            number_of_shots: null,
+            text_types: [],
+            has_call_to_action: false,
+            total_duration: null,
+            audio_types: [],
+            seconds_without_audio: null,
+            key_elements: []
+          });
+        }
+      } finally {
+        setIsAnalyzingVideo(false);
+      }
+    };
+
+    loadVideoAnalysis();
+  }, [details.post?.id, details.post?.media_type, user?.username, videoAnalysis, videoAnalysisError]);
+
+  // 6. Efecto para controlar el scroll de la transcripción
   useEffect(() => {
     // Función para resetear el scroll del popover de transcripción
     const resetTranscriptScroll = () => {
@@ -390,21 +438,6 @@ export default function PostPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            {post?.media_type === 'VIDEO' && (
-              <Button 
-                color="secondary" 
-                onClick={handleAnalyzeVideo} 
-                disabled={isAnalyzingVideo}
-                className="flex items-center gap-1"
-              >
-                {isAnalyzingVideo ? (
-                  <CircularProgress size="sm" className="mr-1" />
-                ) : (
-                  <VideoCameraIcon className="w-4 h-4" />
-                )}
-                {isAnalyzingVideo ? 'Analizando...' : 'Analizar Video'}
-              </Button>
-            )}
             <Button color="secondary" onClick={() => router.back()}>
               Volver
             </Button>
@@ -786,13 +819,6 @@ export default function PostPage() {
                             </div>
                           </div>
                         )}
-                        
-                        <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                          <h4 className="text-sm font-semibold mb-2">JSON completo</h4>
-                          <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto max-h-[200px]">
-                            {JSON.stringify(videoAnalysis, null, 2)}
-                          </pre>
-                        </div>
                       </>
                     )}
                   </div>
@@ -800,8 +826,8 @@ export default function PostPage() {
                   <div className="flex flex-col items-center justify-center h-full text-gray-500">
                     {post?.media_type === 'VIDEO' ? (
                       <>
-                        <VideoCameraIcon className="w-12 h-12 mb-4 text-gray-300" />
-                        <p>Haz clic en "Analizar Video" para obtener un análisis detallado</p>
+                        <CircularProgress className="mb-4" />
+                        <p>Cargando análisis de video...</p>
                       </>
                     ) : (
                       <>
