@@ -61,7 +61,6 @@ export default function Sidebar() {
   return (
     <div className="w-20 h-screen bg-white border-r border-gray-200 fixed left-0 top-0">
       <div className="flex flex-col h-full">
-        {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="w-10 h-10 rounded-full overflow-hidden">
             <Image
