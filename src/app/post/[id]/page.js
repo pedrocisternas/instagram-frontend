@@ -448,22 +448,36 @@ export default function PostPage() {
         <div className="max-w-[1280px] mx-auto">
           <div className="grid grid-cols-3 gap-6 h-[calc(100vh-180px)]">
             {/* Columna 1 - Video */}
-            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
-              <div className="aspect-[9/16] rounded-xl overflow-hidden border-2 border-black bg-black">
-                {post?.media_url ? (
+            <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center h-full overflow-hidden">
+              {post?.media_type === 'VIDEO' ? (
+                post?.media_url ? (
                   <video
                     src={post.media_url}
                     controls
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
                   />
                 ) : post?.thumbnail_url ? (
                   <img
                     src={post.thumbnail_url}
                     alt="Post thumbnail"
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
                   />
-                ) : null}
-              </div>
+                ) : null
+              ) : (post?.media_type === 'IMAGE' || post?.media_type === 'CAROUSEL_ALBUM') ? (
+                post?.media_url ? (
+                  <img
+                    src={post.media_url}
+                    alt="Post content"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                  />
+                ) : post?.thumbnail_url ? (
+                  <img
+                    src={post.thumbnail_url}
+                    alt="Post thumbnail"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                  />
+                ) : null
+              ) : null}
             </div>
 
             {/* Columna 2 - Métricas */}
