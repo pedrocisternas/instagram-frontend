@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton, Image } from "@heroui/react";
-import { formatDate, formatTime } from '../../../utils/dateFormatters';
+import { formatDate, formatTime, formatDuration, formatTranscriptTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
 import { 
   assignCategoryToPost,
@@ -369,29 +369,6 @@ export default function PostPage() {
     }
   };
 
-  // Función para formatear el tiempo de transcripción sin decimales
-  const formatTranscriptTime = (timeString) => {
-    if (!timeString) return '';
-    
-    // Primero removemos los decimales
-    const withoutDecimals = timeString.split('.')[0];
-    
-    // Ahora dividimos en minutos y segundos
-    const parts = withoutDecimals.split(':');
-    if (parts.length === 2) {
-      const minutes = parts[0];
-      const seconds = parts[1];
-      
-      // Agregamos un cero inicial a los segundos si es necesario
-      const paddedSeconds = seconds.length === 1 ? `0${seconds}` : seconds;
-      
-      // Devolvemos el tiempo formateado
-      return `${minutes}:${paddedSeconds}`;
-    }
-    
-    return withoutDecimals; // Devolver el original sin decimales si no tiene formato MM:SS
-  };
-
   // Agregar esta función para copiar al portapapeles
   const copyTranscriptToClipboard = () => {
     if (!details.transcript) return;
@@ -537,94 +514,119 @@ export default function PostPage() {
                       </div>
                     </div>
 
-                    {/* Agregar el botón de transcripción a los detalles */}
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">Transcripción</p>
-                      <div className="min-h-[28px] flex items-center">
-                        {details.transcript ? (
-                          <Popover 
-                            placement="bottom-start" 
-                            showArrow
-                            offset={10}
-                          >
-                            <PopoverTrigger>
-                              <Button 
-                                color="secondary" 
-                                className="bg-purple-100 text-purple-700 rounded-full px-4"
-                                size="sm"
-                                startContent={<DocumentTextIcon className="h-4 w-4" />}
-                              >
-                                Ver transcripción
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-96 p-0">
-                              <div className="relative">
-                                <Button
+                    {/* Transcripción y Duración en grid de 2 columnas */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Transcripción</p>
+                        <div className="min-h-[28px]">
+                          {details.transcript ? (
+                            <Popover 
+                              placement="bottom-start" 
+                              showArrow
+                              offset={10}
+                            >
+                              <PopoverTrigger>
+                                <Button 
+                                  color="secondary" 
+                                  className="bg-purple-100 text-purple-700 rounded-full px-4"
                                   size="sm"
-                                  color="secondary"
-                                  variant="flat"
-                                  className="absolute right-2 top-2 px-2 py-1 h-7 z-10"
-                                  onClick={copyTranscriptToClipboard}
+                                  startContent={<DocumentTextIcon className="h-4 w-4" />}
                                 >
-                                  {copied ? "¡Copiado!" : "Copiar"}
+                                  Ver transcripción
                                 </Button>
-                                <div id="transcript-content" className="max-h-96 overflow-y-auto p-4 pt-10">
-                                  {details.transcript.segments?.length > 0 ? (
-                                    <div className="space-y-2">
-                                      {details.transcript.segments.map((segment, index) => (
-                                        <div key={index} className="text-sm text-gray-600">
-                                          <span className="font-medium text-gray-500">
-                                            {formatTranscriptTime(segment.startTime)} - {formatTranscriptTime(segment.endTime)}:
-                                          </span>
-                                          <span className="ml-2">{segment.text}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                                      {details.transcript.full_text}
-                                    </div>
-                                  )}
+                              </PopoverTrigger>
+                              <PopoverContent className="w-96 p-0">
+                                <div className="relative">
+                                  <Button
+                                    size="sm"
+                                    color="secondary"
+                                    variant="flat"
+                                    className="absolute right-2 top-2 px-2 py-1 h-7 z-10"
+                                    onClick={copyTranscriptToClipboard}
+                                  >
+                                    {copied ? "¡Copiado!" : "Copiar"}
+                                  </Button>
+                                  <div id="transcript-content" className="max-h-96 overflow-y-auto p-4 pt-10">
+                                    {details.transcript.segments?.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {details.transcript.segments.map((segment, index) => (
+                                          <div key={index} className="text-sm text-gray-600">
+                                            <span className="font-medium text-gray-500">
+                                              {formatTranscriptTime(segment.startTime)} - {formatTranscriptTime(segment.endTime)}:
+                                            </span>
+                                            <span className="ml-2">{segment.text}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                                        {details.transcript.full_text}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
+                              </PopoverContent>
+                            </Popover>
+                          ) : isTranscribing ? (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              isDisabled
+                              startContent={
+                                <CircularProgress size="sm" color="secondary" className="mr-1" />
+                              }
+                            >
+                              <TranscriptLoadingMessage />
+                            </Button>
+                          ) : details.transcriptionError === 'NO_AUDIO' ? (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              isDisabled
+                              startContent={<NoSymbolIcon className="h-4 w-4" />}
+                            >
+                              Sin audio
+                            </Button>
+                          ) : (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              onClick={handleTranscribe}
+                              startContent={<PlusIcon className="h-4 w-4" />}
+                            >
+                              Transcribir
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Duración</p>
+                        <div className="min-h-[28px]">
+                          {post?.media_type === 'VIDEO' ? (
+                            isAnalyzingVideo ? (
+                              <div className="flex items-center gap-2">
+                                <CircularProgress size="sm" color="secondary" />
+                                <span className="text-sm">Calculando...</span>
                               </div>
-                            </PopoverContent>
-                          </Popover>
-                        ) : isTranscribing ? (
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            className="bg-purple-100 text-purple-700 rounded-full px-4"
-                            isDisabled
-                            startContent={
-                              <CircularProgress size="sm" color="secondary" className="mr-1" />
-                            }
-                          >
-                            <TranscriptLoadingMessage />
-                          </Button>
-                        ) : details.transcriptionError === 'NO_AUDIO' ? (
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            className="bg-purple-100 text-purple-700 rounded-full px-4"
-                            isDisabled
-                            startContent={<NoSymbolIcon className="h-4 w-4" />}
-                          >
-                            Sin audio
-                          </Button>
-                        ) : (
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            className="bg-purple-100 text-purple-700 rounded-full px-4"
-                            onClick={handleTranscribe}
-                            startContent={<PlusIcon className="h-4 w-4" />}
-                          >
-                            Transcribir
-                          </Button>
-                        )}
+                            ) : videoAnalysis?.total_duration ? (
+                              <p className="font-medium flex items-center gap-2">
+                                <VideoCameraIcon className="h-4 w-4 text-purple-700" />
+                                <span>{formatDuration(videoAnalysis.total_duration)}</span>
+                              </p>
+                            ) : (
+                              <p className="text-gray-500">Sin duración</p>
+                            )
+                          ) : (
+                            <p className="text-gray-500">No aplicable</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-
+                    
                     {/* Detalles existentes */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -639,7 +641,7 @@ export default function PostPage() {
                           {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
                         </p>
                       </div>
-                    </div>                      
+                    </div>
                   </div>
                 </div>
 
@@ -762,7 +764,7 @@ export default function PostPage() {
             {/* Columna 3 - Análisis de Video (reemplaza Insights) */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Análisis de Video</h3>
+                <h3 className="text-lg font-semibold">Análisis de Contenido</h3>
               </div>
               
               <div className="relative h-full overflow-auto">
