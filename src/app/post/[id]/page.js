@@ -426,12 +426,18 @@ export default function PostPage() {
           <div className="grid grid-cols-3 gap-6 h-[calc(100vh-180px)]">
             {/* Columna 1 - Video */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center h-full overflow-hidden">
-              {post?.media_type === 'VIDEO' ? (
+              {loading ? (
+                <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="aspect-[9/16] w-full max-w-[320px] bg-gray-200 rounded-lg animate-pulse"></div>
+                </div>
+              ) : post?.media_type === 'VIDEO' ? (
                 post?.media_url ? (
                   <video
                     src={post.media_url}
                     controls
                     className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                    preload="metadata"
+                    poster={post.thumbnail_url || ''}
                   />
                 ) : post?.thumbnail_url ? (
                   <img
@@ -439,7 +445,11 @@ export default function PostPage() {
                     alt="Post thumbnail"
                     className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
                   />
-                ) : null
+                ) : (
+                  <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">No hay vista previa disponible</p>
+                  </div>
+                )
               ) : (post?.media_type === 'IMAGE' || post?.media_type === 'CAROUSEL_ALBUM') ? (
                 post?.media_url ? (
                   <img
@@ -453,8 +463,16 @@ export default function PostPage() {
                     alt="Post thumbnail"
                     className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
                   />
-                ) : null
-              ) : null}
+                ) : (
+                  <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">No hay vista previa disponible</p>
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                  <p className="text-gray-500">No hay contenido disponible</p>
+                </div>
+              )}
             </div>
 
             {/* Columna 2 - Métricas */}
