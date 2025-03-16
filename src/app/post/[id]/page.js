@@ -3,16 +3,17 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton, Image } from "@heroui/react";
-import { formatDate, formatTime } from '../../../utils/dateFormatters';
+import { formatDate, formatTime, formatDuration, formatTranscriptTime } from '../../../utils/dateFormatters';
 import { APP_CONFIG } from '@/config/app';
 import { 
   assignCategoryToPost,
   assignSubcategoryToPost,
 } from '@/services/api/categories';
 import CategoryPopover from '@/components/categories/CategoryPopover';
-import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon, VideoCameraIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
+import { generateVideoAnalysis } from '@/services/api/videoAnalysis';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
 import { useAuthStore } from '@/store/auth';
@@ -27,11 +28,15 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isAnalyzingVideo, setIsAnalyzingVideo] = useState(false);
   const [insights, setInsights] = useState(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
   const [needsInsightsUpdate, setNeedsInsightsUpdate] = useState(false);
   const [comparisonType, setComparisonType] = useState('category');
+  const [showInsights, setShowInsights] = useState(false);
+  const [videoAnalysis, setVideoAnalysis] = useState(null);
+  const [videoAnalysisError, setVideoAnalysisError] = useState(null);
   const [details, setDetails] = useState({
     post: null,
     currentCategory: null,
@@ -114,7 +119,54 @@ export default function PostPage() {
     generatePostTranscript();
   }, [details.post?.id, user?.username, details.transcript, details.transcriptionError]);
 
-  // Agregar este efecto para controlar el scroll de la transcripción
+  // 5. Efecto para cargar automáticamente el análisis de video
+  useEffect(() => {
+    const loadVideoAnalysis = async () => {
+      // Solo ejecutar si:
+      // - El post existe
+      // - Es un video
+      // - Hay un usuario autenticado
+      // - No hay un análisis ya cargado o un error previo
+      if (!details.post?.id || 
+          details.post.media_type !== 'VIDEO' || 
+          !user?.username || 
+          videoAnalysis || 
+          videoAnalysisError) {
+        return;
+      }
+
+      try {
+        setIsAnalyzingVideo(true);
+        const result = await generateVideoAnalysis(details.post.id, user.username);
+        setVideoAnalysis(result);
+        console.log('Análisis de video cargado automáticamente');
+      } catch (error) {
+        console.error('Error al cargar análisis de video:', error);
+        setVideoAnalysisError(error.message);
+        
+        // Manejar error específico de video demasiado grande
+        if (error.message && error.message.includes('VIDEO_TOO_LARGE')) {
+          setVideoAnalysis({
+            error: 'VIDEO_TOO_LARGE',
+            description: 'El video es demasiado grande para ser procesado por Gemini. El límite es de aproximadamente 30MB.',
+            number_of_shots: null,
+            text_types: [],
+            has_call_to_action: false,
+            total_duration: null,
+            audio_types: [],
+            seconds_without_audio: null,
+            key_elements: []
+          });
+        }
+      } finally {
+        setIsAnalyzingVideo(false);
+      }
+    };
+
+    loadVideoAnalysis();
+  }, [details.post?.id, details.post?.media_type, user?.username, videoAnalysis, videoAnalysisError]);
+
+  // 6. Efecto para controlar el scroll de la transcripción
   useEffect(() => {
     // Función para resetear el scroll del popover de transcripción
     const resetTranscriptScroll = () => {
@@ -281,27 +333,40 @@ export default function PostPage() {
     }
   };
 
-  // Función para formatear el tiempo de transcripción sin decimales
-  const formatTranscriptTime = (timeString) => {
-    if (!timeString) return '';
-    
-    // Primero removemos los decimales
-    const withoutDecimals = timeString.split('.')[0];
-    
-    // Ahora dividimos en minutos y segundos
-    const parts = withoutDecimals.split(':');
-    if (parts.length === 2) {
-      const minutes = parts[0];
-      const seconds = parts[1];
+  // Función para manejar el análisis de video
+  const handleAnalyzeVideo = async () => {
+    try {
+      if (!user?.username) {
+        console.log('[PostPage] No username available yet, waiting...');
+        return;
+      }
       
-      // Agregamos un cero inicial a los segundos si es necesario
-      const paddedSeconds = seconds.length === 1 ? `0${seconds}` : seconds;
-      
-      // Devolvemos el tiempo formateado
-      return `${minutes}:${paddedSeconds}`;
+      setIsAnalyzingVideo(true);
+      try {
+        const result = await generateVideoAnalysis(post.id, user.username);
+        setVideoAnalysis(result);
+        console.log('Análisis de video completado', result);
+      } catch (error) {
+        console.error('Error al analizar video:', error);
+        
+        // Mostrar mensaje específico para videos demasiado grandes
+        if (error.message && error.message.includes('VIDEO_TOO_LARGE')) {
+          setVideoAnalysis({
+            error: 'VIDEO_TOO_LARGE',
+            description: 'El video es demasiado grande para ser procesado por Gemini. El límite es de aproximadamente 30MB.',
+            number_of_shots: null,
+            text_types: [],
+            has_call_to_action: false,
+            total_duration: null,
+            audio_types: [],
+            seconds_without_audio: null,
+            key_elements: []
+          });
+        }
+      }
+    } finally {
+      setIsAnalyzingVideo(false);
     }
-    
-    return withoutDecimals; // Devolver el original sin decimales si no tiene formato MM:SS
   };
 
   // Agregar esta función para copiar al portapapeles
@@ -349,31 +414,65 @@ export default function PostPage() {
               </Tooltip>
             )}
           </div>
-          <Button color="secondary" onClick={() => router.back()}>
-            Volver
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button color="secondary" onClick={() => router.back()}>
+              Volver
+            </Button>
+          </div>
         </div>
 
         {/* Contenedor principal - 3 columnas, centrado */}
         <div className="max-w-[1280px] mx-auto">
           <div className="grid grid-cols-3 gap-6 h-[calc(100vh-180px)]">
             {/* Columna 1 - Video */}
-            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
-              <div className="aspect-[9/16] rounded-xl overflow-hidden border-2 border-black bg-black">
-                {post?.media_url ? (
+            <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center h-full overflow-hidden">
+              {loading ? (
+                <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                  <div className="aspect-[9/16] w-full max-w-[320px] bg-gray-200 rounded-lg animate-pulse"></div>
+                </div>
+              ) : post?.media_type === 'VIDEO' ? (
+                post?.media_url ? (
                   <video
                     src={post.media_url}
                     controls
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                    preload="metadata"
+                    poster={post.thumbnail_url || ''}
                   />
                 ) : post?.thumbnail_url ? (
                   <img
                     src={post.thumbnail_url}
                     alt="Post thumbnail"
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
                   />
-                ) : null}
-              </div>
+                ) : (
+                  <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">No hay vista previa disponible</p>
+                  </div>
+                )
+              ) : (post?.media_type === 'IMAGE' || post?.media_type === 'CAROUSEL_ALBUM') ? (
+                post?.media_url ? (
+                  <img
+                    src={post.media_url}
+                    alt="Post content"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                  />
+                ) : post?.thumbnail_url ? (
+                  <img
+                    src={post.thumbnail_url}
+                    alt="Post thumbnail"
+                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                    <p className="text-gray-500">No hay vista previa disponible</p>
+                  </div>
+                )
+              ) : (
+                <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                  <p className="text-gray-500">No hay contenido disponible</p>
+                </div>
+              )}
             </div>
 
             {/* Columna 2 - Métricas */}
@@ -433,94 +532,119 @@ export default function PostPage() {
                       </div>
                     </div>
 
-                    {/* Agregar el botón de transcripción a los detalles */}
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 mb-2">Transcripción</p>
-                      <div className="min-h-[28px] flex items-center">
-                        {details.transcript ? (
-                          <Popover 
-                            placement="bottom-start" 
-                            showArrow
-                            offset={10}
-                          >
-                            <PopoverTrigger>
-                              <Button 
-                                color="secondary" 
-                                className="bg-purple-100 text-purple-700 rounded-full px-4"
-                                size="sm"
-                                startContent={<DocumentTextIcon className="h-4 w-4" />}
-                              >
-                                Ver transcripción
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-96 p-0">
-                              <div className="relative">
-                                <Button
+                    {/* Transcripción y Duración en grid de 2 columnas */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Transcripción</p>
+                        <div className="min-h-[28px]">
+                          {details.transcript ? (
+                            <Popover 
+                              placement="bottom-start" 
+                              showArrow
+                              offset={10}
+                            >
+                              <PopoverTrigger>
+                                <Button 
+                                  color="secondary" 
+                                  className="bg-purple-100 text-purple-700 rounded-full px-4"
                                   size="sm"
-                                  color="secondary"
-                                  variant="flat"
-                                  className="absolute right-2 top-2 px-2 py-1 h-7 z-10"
-                                  onClick={copyTranscriptToClipboard}
+                                  startContent={<DocumentTextIcon className="h-4 w-4" />}
                                 >
-                                  {copied ? "¡Copiado!" : "Copiar"}
+                                  Ver transcripción
                                 </Button>
-                                <div id="transcript-content" className="max-h-96 overflow-y-auto p-4 pt-10">
-                                  {details.transcript.segments?.length > 0 ? (
-                                    <div className="space-y-2">
-                                      {details.transcript.segments.map((segment, index) => (
-                                        <div key={index} className="text-sm text-gray-600">
-                                          <span className="font-medium text-gray-500">
-                                            {formatTranscriptTime(segment.startTime)} - {formatTranscriptTime(segment.endTime)}:
-                                          </span>
-                                          <span className="ml-2">{segment.text}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="text-sm text-gray-600 whitespace-pre-wrap">
-                                      {details.transcript.full_text}
-                                    </div>
-                                  )}
+                              </PopoverTrigger>
+                              <PopoverContent className="w-96 p-0">
+                                <div className="relative">
+                                  <Button
+                                    size="sm"
+                                    color="secondary"
+                                    variant="flat"
+                                    className="absolute right-2 top-2 px-2 py-1 h-7 z-10"
+                                    onClick={copyTranscriptToClipboard}
+                                  >
+                                    {copied ? "¡Copiado!" : "Copiar"}
+                                  </Button>
+                                  <div id="transcript-content" className="max-h-96 overflow-y-auto p-4 pt-10">
+                                    {details.transcript.segments?.length > 0 ? (
+                                      <div className="space-y-2">
+                                        {details.transcript.segments.map((segment, index) => (
+                                          <div key={index} className="text-sm text-gray-600">
+                                            <span className="font-medium text-gray-500">
+                                              {formatTranscriptTime(segment.startTime)} - {formatTranscriptTime(segment.endTime)}:
+                                            </span>
+                                            <span className="ml-2">{segment.text}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-sm text-gray-600 whitespace-pre-wrap">
+                                        {details.transcript.full_text}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
+                              </PopoverContent>
+                            </Popover>
+                          ) : isTranscribing ? (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              isDisabled
+                              startContent={
+                                <CircularProgress size="sm" color="secondary" className="mr-1" />
+                              }
+                            >
+                              <TranscriptLoadingMessage />
+                            </Button>
+                          ) : details.transcriptionError === 'NO_AUDIO' ? (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              isDisabled
+                              startContent={<NoSymbolIcon className="h-4 w-4" />}
+                            >
+                              Sin audio
+                            </Button>
+                          ) : (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              onClick={handleTranscribe}
+                              startContent={<PlusIcon className="h-4 w-4" />}
+                            >
+                              Transcribir
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-gray-600 mb-2">Duración</p>
+                        <div className="min-h-[28px]">
+                          {post?.media_type === 'VIDEO' ? (
+                            isAnalyzingVideo ? (
+                              <div className="flex items-center gap-2">
+                                <CircularProgress size="sm" color="secondary" />
+                                <span className="text-sm">Calculando...</span>
                               </div>
-                            </PopoverContent>
-                          </Popover>
-                        ) : isTranscribing ? (
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            className="bg-purple-100 text-purple-700 rounded-full px-4"
-                            isDisabled
-                            startContent={
-                              <CircularProgress size="sm" color="secondary" className="mr-1" />
-                            }
-                          >
-                            <TranscriptLoadingMessage />
-                          </Button>
-                        ) : details.transcriptionError === 'NO_AUDIO' ? (
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            className="bg-purple-100 text-purple-700 rounded-full px-4"
-                            isDisabled
-                            startContent={<NoSymbolIcon className="h-4 w-4" />}
-                          >
-                            Sin audio
-                          </Button>
-                        ) : (
-                          <Button
-                            color="secondary"
-                            size="sm"
-                            className="bg-purple-100 text-purple-700 rounded-full px-4"
-                            onClick={handleTranscribe}
-                            startContent={<PlusIcon className="h-4 w-4" />}
-                          >
-                            Transcribir
-                          </Button>
-                        )}
+                            ) : videoAnalysis?.total_duration ? (
+                              <p className="font-medium flex items-center gap-2">
+                                <VideoCameraIcon className="h-4 w-4 text-purple-700" />
+                                <span>{formatDuration(videoAnalysis.total_duration)}</span>
+                              </p>
+                            ) : (
+                              <p className="text-gray-500">Sin duración</p>
+                            )
+                          ) : (
+                            <p className="text-gray-500">No aplicable</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-
+                    
                     {/* Detalles existentes */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -535,7 +659,7 @@ export default function PostPage() {
                           {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
                         </p>
                       </div>
-                    </div>                      
+                    </div>
                   </div>
                 </div>
 
@@ -655,54 +779,147 @@ export default function PostPage() {
               </div>
             </div>
 
-            {/* Columna 3 - Solo Insights */}
+            {/* Columna 3 - Análisis de Video (reemplaza Insights) */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Insights</h3>
-                {needsInsightsUpdate && insights && (
-                  <Button
-                    color="secondary"
-                    size="sm"
-                    onClick={handleGenerateInsights}
-                    disabled={isLoadingInsights}
-                    startContent={isLoadingInsights && (
-                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                    )}
-                  >
-                    Actualizar
-                  </Button>
-                )}
+                <h3 className="text-lg font-semibold">Análisis de Contenido</h3>
               </div>
-
-              <div className="relative h-full">
-                {/* Estado de Carga para los Insights */}
-                {isLoadingInsights && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
-                    <div className="relative">
-                      <div className="w-20 h-20">
-                        <CircularProgress
-                          size="lg"
-                          color="secondary"
-                          isIndeterminate
-                          className="absolute inset-0"
-                        />
+              
+              <div className="relative h-full overflow-auto">
+                {isAnalyzingVideo ? (
+                  <div className="flex flex-col items-center justify-center h-full">
+                    <CircularProgress className="mb-4" />
+                    <p className="text-gray-500">Analizando video...</p>
+                  </div>
+                ) : videoAnalysis ? (
+                  <div className="space-y-4">
+                    {videoAnalysis.error === 'VIDEO_TOO_LARGE' ? (
+                      <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+                        <h4 className="text-sm font-semibold mb-2 text-red-700">Error: Video demasiado grande</h4>
+                        <p className="text-sm text-red-600">{videoAnalysis.description}</p>
+                        <p className="text-xs text-red-500 mt-2">
+                          Intenta con un video más pequeño o de menor duración para poder analizarlo.
+                        </p>
                       </div>
-                    </div>
-                    <div className="mt-6 text-center">
-                      <LoadingMessage />
-                    </div>
+                    ) : (
+                      <>
+                        <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                          <h4 className="text-sm font-semibold mb-2">Descripción</h4>
+                          <p className="text-sm text-gray-700">{videoAnalysis.description}</p>
+                        </div>
+                        
+                        {videoAnalysis.number_of_shots && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Número de tomas</h4>
+                            <p className="text-sm text-gray-700">{videoAnalysis.number_of_shots}</p>
+                          </div>
+                        )}
+                        
+                        {videoAnalysis.audio_types && videoAnalysis.audio_types.length > 0 && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Tipos de audio</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.audio_types.map((type, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {videoAnalysis.text_types && videoAnalysis.text_types.length > 0 && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Tipos de texto</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.text_types.map((type, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {videoAnalysis.key_elements && videoAnalysis.key_elements.length > 0 && (
+                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                            <h4 className="text-sm font-semibold mb-2">Elementos clave</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.key_elements.map((element, index) => (
+                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                                  {element}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    {post?.media_type === 'VIDEO' ? (
+                      <>
+                        <CircularProgress className="mb-4" />
+                        <p>Cargando análisis de video...</p>
+                      </>
+                    ) : (
+                      <>
+                        <NoSymbolIcon className="w-12 h-12 mb-4 text-gray-300" />
+                        <p>El análisis de video solo está disponible para posts de tipo VIDEO</p>
+                      </>
+                    )}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                {/* Contenido de Insights */}
-                {!isLoadingInsights && (insights ? (
-                  <div className="space-y-6 transition-all duration-300 overflow-auto h-[calc(100vh-260px)] pr-1">
-                    {/* Summary Section */}
-                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                      <div className="flex items-center gap-4">
+      {/* Botón flotante para mostrar/ocultar Insights */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          onClick={() => setShowInsights(!showInsights)}
+          color="primary"
+          className="rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+        >
+          <SparklesIcon className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {/* Panel de Insights (oculto por defecto) */}
+      {showInsights && (
+        <div className="fixed bottom-0 right-0 left-0 bg-white shadow-lg rounded-t-xl z-40 transition-all duration-300 max-h-[80vh] overflow-auto">
+          <div className="p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Insights</h3>
+              <Button
+                onClick={() => setShowInsights(false)}
+                color="secondary"
+                size="sm"
+                className="rounded-full"
+              >
+                <ChevronUpIcon className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="relative">
+              {/* Estado de Carga para los Insights */}
+              {isLoadingInsights && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                  <CircularProgress className="mb-4" />
+                  <LoadingMessage />
+                </div>
+              )}
+
+              {/* Contenido de Insights */}
+              {!isLoadingInsights && (insights ? (
+                <div className="space-y-6 transition-all duration-300">
+                  {/* Summary Section */}
+                  <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                    <div className="flex items-center gap-4">
+                      {insights.summary && insights.summary.score ? (
                         <div className={`text-2xl ${
                           insights.summary.score >= 80 ? 'text-success' :
                           insights.summary.score >= 60 ? 'text-warning' :
@@ -710,18 +927,40 @@ export default function PostPage() {
                         }`}>
                           {insights.summary.score}
                         </div>
-                        <div>
+                      ) : null}
+                      <div className="flex-1">
+                        {insights.summary && insights.summary.status ? (
                           <h4 className="text-sm font-semibold">{insights.summary.status}</h4>
-                          <p className="text-sm text-gray-600">{insights.summary.quick_take}</p>
+                        ) : null}
+                        {insights.summary && insights.summary.quick_take ? (
+                          <p className="text-sm text-gray-700">{insights.summary.quick_take}</p>
+                        ) : (
+                          <p className="text-sm text-gray-700">{typeof insights.summary === 'string' ? insights.summary : 'Resumen no disponible'}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <div className="text-xs text-gray-500 mb-1">
+                          {insightsGeneratedAt ? `Generado ${formatDate(insightsGeneratedAt)}` : 'Recién generado'}
                         </div>
+                        <Button
+                          onClick={handleGenerateInsights}
+                          size="sm"
+                          color={needsInsightsUpdate ? "primary" : "secondary"}
+                          disabled={isLoadingInsights}
+                          className="text-xs"
+                        >
+                          {needsInsightsUpdate ? 'Actualizar' : 'Regenerar'}
+                        </Button>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Metrics Analysis */}
-                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                      <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
-                      <div className="space-y-4">
-                        {insights.metrics_analysis.highlights.map((highlight, index) => (
+                  {/* Metrics Analysis */}
+                  <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                    <h4 className="text-sm font-semibold mb-4">Métricas Destacadas</h4>
+                    <div className="space-y-3">
+                      {insights.metrics_analysis && insights.metrics_analysis.highlights ? (
+                        insights.metrics_analysis.highlights.map((highlight, index) => (
                           <div key={index} className="flex items-center gap-3">
                             <div className={`text-xl ${
                               highlight.trend === 'up' ? 'text-success' :
@@ -738,48 +977,145 @@ export default function PostPage() {
                               <p className="text-sm text-gray-600">{highlight.insight}</p>
                             </div>
                           </div>
+                        ))
+                      ) : Array.isArray(insights.metrics_analysis) ? (
+                        insights.metrics_analysis.map((metric, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5"></div>
+                            <p className="text-sm text-gray-700 flex-1">{metric}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-600">No hay métricas destacadas disponibles</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Content Analysis */}
+                  <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                    <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
+                    {Array.isArray(insights.content_analysis) ? (
+                      <div className="space-y-3">
+                        {insights.content_analysis.map((content, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5"></div>
+                            <p className="text-sm text-gray-700 flex-1">{content}</p>
+                          </div>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Content Analysis */}
-                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                      <h4 className="text-sm font-semibold mb-4">Análisis de Contenido</h4>
+                    ) : (
                       <p className="text-sm text-gray-600 whitespace-pre-wrap">
                         {insights.content_analysis}
                       </p>
-                    </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <div className="w-20 h-20 text-secondary mb-4">
-                      <MagnifyingGlassIcon className="w-full h-full" />
-                    </div>
-                    <p className="text-gray-600 text-center mb-4">
-                      No hay insights disponibles para este post.
-                    </p>
-                    <Button
-                      color="secondary"
-                      onClick={handleGenerateInsights}
-                      size="lg"
-                      disabled={isLoadingInsights}
-                    >
-                      {isLoadingInsights ? (
-                        <div className="flex items-center gap-2">
-                          <CircularProgress size="sm" color="current" />
-                          <span>Generando...</span>
+
+                  {/* Recommendations - solo mostrar si existen */}
+                  {insights.recommendations && (
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <h4 className="text-sm font-semibold mb-4">Recomendaciones</h4>
+                      {Array.isArray(insights.recommendations) ? (
+                        <div className="space-y-3">
+                          {insights.recommendations.map((recommendation, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <div className="w-2 h-2 rounded-full bg-purple-500 mt-1.5"></div>
+                              <p className="text-sm text-gray-700 flex-1">{recommendation}</p>
+                            </div>
+                          ))}
                         </div>
                       ) : (
-                        "Generar Insights"
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                          {insights.recommendations}
+                        </p>
                       )}
-                    </Button>
+                    </div>
+                  )}
+
+                  {/* Comparison - solo mostrar si existen las propiedades necesarias */}
+                  {(insights.category_comparison || insights.all_posts_comparison) && (
+                    <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
+                      <div className="flex justify-between items-center mb-4">
+                        <h4 className="text-sm font-semibold">Comparación</h4>
+                        <div className="flex gap-2">
+                          <Button
+                            size="xs"
+                            color={comparisonType === 'category' ? 'primary' : 'secondary'}
+                            onClick={() => setComparisonType('category')}
+                            disabled={!insights.category_comparison}
+                          >
+                            Categoría
+                          </Button>
+                          <Button
+                            size="xs"
+                            color={comparisonType === 'all' ? 'primary' : 'secondary'}
+                            onClick={() => setComparisonType('all')}
+                            disabled={!insights.all_posts_comparison}
+                          >
+                            Todos
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {comparisonType === 'category' && insights.category_comparison ? (
+                        <div className="space-y-3">
+                          {Array.isArray(insights.category_comparison) ? (
+                            insights.category_comparison.map((comparison, index) => (
+                              <div key={index} className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5"></div>
+                                <p className="text-sm text-gray-700 flex-1">{comparison}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {insights.category_comparison}
+                            </p>
+                          )}
+                        </div>
+                      ) : comparisonType === 'all' && insights.all_posts_comparison ? (
+                        <div className="space-y-3">
+                          {Array.isArray(insights.all_posts_comparison) ? (
+                            insights.all_posts_comparison.map((comparison, index) => (
+                              <div key={index} className="flex items-start gap-2">
+                                <div className="w-2 h-2 rounded-full bg-amber-500 mt-1.5"></div>
+                                <p className="text-sm text-gray-700 flex-1">{comparison}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                              {insights.all_posts_comparison}
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-20 h-20 text-secondary mb-4">
+                    <MagnifyingGlassIcon className="w-full h-full" />
                   </div>
-                ))}
-              </div>
+                  <p className="text-gray-500 mb-4">No hay insights disponibles para este post</p>
+                  <Button
+                    onClick={handleGenerateInsights}
+                    color="primary"
+                    disabled={isLoadingInsights}
+                  >
+                    {isLoadingInsights ? (
+                      <div className="flex items-center gap-2">
+                        <CircularProgress size="sm" color="current" />
+                        <span>Generando...</span>
+                      </div>
+                    ) : (
+                      "Generar Insights"
+                    )}
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }
@@ -787,44 +1123,34 @@ export default function PostPage() {
 // Modificar el componente LoadingMessage para recibir activeTab como prop
 function LoadingMessage() {
   const messages = ["Analizando métricas...", "Generando insights...", "Organizando insights...", "Procesando contenido..."];
-
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 3000);
-
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <p className="text-secondary-600 text-center animate-fade-in">
-      {messages[messageIndex]}
-    </p>
-  );
+  return <p className="text-gray-500 text-center">{messages[messageIndex]}</p>;
 }
 
 // Primero agregamos el componente (junto a LoadingMessage existente)
 function TranscriptLoadingMessage() {
   const messages = [
-    "Extrayendo audio...",
-    "Transcribiendo video..."
+    "Transcribiendo audio...",
+    "Procesando palabras...",
+    "Analizando contenido...",
+    "Generando transcripción...",
   ];
-
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setMessageIndex((prev) => (prev + 1) % messages.length);
-    }, 3000);
-
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <p className="text-secondary-600 text-xs animate-fade-in">
-      {messages[messageIndex]}
-    </p>
-  );
+  return <p className="text-gray-500 text-center">{messages[messageIndex]}</p>;
 }
