@@ -414,7 +414,12 @@ export default function PostPage() {
               </Tooltip>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
+            {post?.metrics_updated_at && (
+              <span className="text-xs text-gray-500">
+                Actualizado: {formatDate(post.metrics_updated_at)} {formatTime(post.metrics_updated_at)}
+              </span>
+            )}
             <Button color="secondary" onClick={() => router.back()}>
               Volver
             </Button>
@@ -425,57 +430,69 @@ export default function PostPage() {
         <div className="max-w-[1280px] mx-auto">
           <div className="grid grid-cols-3 gap-6 h-[calc(100vh-180px)]">
             {/* Columna 1 - Video */}
-            <div className="bg-white rounded-lg shadow-sm p-4 flex items-center justify-center h-full overflow-hidden">
-              {loading ? (
-                <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
-                  <div className="aspect-[9/16] w-full max-w-[320px] bg-gray-200 rounded-lg animate-pulse"></div>
-                </div>
-              ) : post?.media_type === 'VIDEO' ? (
-                post?.media_url ? (
-                  <video
-                    src={post.media_url}
-                    controls
-                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
-                    preload="metadata"
-                    poster={post.thumbnail_url || ''}
-                  />
-                ) : post?.thumbnail_url ? (
-                  <img
-                    src={post.thumbnail_url}
-                    alt="Post thumbnail"
-                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
-                  />
+            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
+              <div className="flex-grow flex items-center justify-center">
+                {loading ? (
+                  <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                    <div className="aspect-[9/16] w-full max-w-[320px] bg-gray-200 rounded-lg animate-pulse"></div>
+                  </div>
+                ) : post?.media_type === 'VIDEO' ? (
+                  post?.media_url ? (
+                    <video
+                      src={post.media_url}
+                      controls
+                      className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                      preload="metadata"
+                      poster={post.thumbnail_url || ''}
+                    />
+                  ) : post?.thumbnail_url ? (
+                    <img
+                      src={post.thumbnail_url}
+                      alt="Post thumbnail"
+                      className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                      <p className="text-gray-500">No hay vista previa disponible</p>
+                    </div>
+                  )
+                ) : (post?.media_type === 'IMAGE' || post?.media_type === 'CAROUSEL_ALBUM') ? (
+                  post?.media_url ? (
+                    <img
+                      src={post.media_url}
+                      alt="Post content"
+                      className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                    />
+                  ) : post?.thumbnail_url ? (
+                    <img
+                      src={post.thumbnail_url}
+                      alt="Post thumbnail"
+                      className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
+                      <p className="text-gray-500">No hay vista previa disponible</p>
+                    </div>
+                  )
                 ) : (
                   <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
-                    <p className="text-gray-500">No hay vista previa disponible</p>
+                    <p className="text-gray-500">No hay contenido disponible</p>
                   </div>
-                )
-              ) : (post?.media_type === 'IMAGE' || post?.media_type === 'CAROUSEL_ALBUM') ? (
-                post?.media_url ? (
-                  <img
-                    src={post.media_url}
-                    alt="Post content"
-                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
-                  />
-                ) : post?.thumbnail_url ? (
-                  <img
-                    src={post.thumbnail_url}
-                    alt="Post thumbnail"
-                    className="max-w-full max-h-[calc(100vh-280px)] object-contain rounded-lg"
-                  />
-                ) : (
-                  <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
-                    <p className="text-gray-500">No hay vista previa disponible</p>
+                )}
+              </div>
+              {post?.published_at && (
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <div className="flex items-center">
+                    <p className="text-sm text-gray-600">Fecha de publicación:</p>
+                    <p className="ml-2 text-sm font-medium">
+                      {formatDate(post.published_at)} {formatTime(post.published_at)}
+                    </p>
                   </div>
-                )
-              ) : (
-                <div className="w-full h-full min-h-[calc(100vh-280px)] flex items-center justify-center bg-gray-100 rounded-lg">
-                  <p className="text-gray-500">No hay contenido disponible</p>
                 </div>
               )}
             </div>
 
-            {/* Columna 2 - Métricas */}
+            {/* Columna 2 - Metadata del contenido */}
             <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
               <div className="flex flex-col space-y-4 overflow-auto pr-1">
                 <div>
@@ -503,6 +520,7 @@ export default function PostPage() {
                         </div>
                       </div>
                     )}
+                    
                     {/* Categorizaciones */}
                     <div className="flex gap-4 mb-4">
                       <div className="w-28">
@@ -532,11 +550,11 @@ export default function PostPage() {
                       </div>
                     </div>
 
-                    {/* Transcripción y Duración en grid de 2 columnas */}
+                    {/* Transcripción y Descripción en grid de 2 columnas */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <p className="text-sm text-gray-600 mb-2">Transcripción</p>
-                        <div className="min-h-[28px]">
+                        <div className="min-h-[28px] overflow-hidden">
                           {details.transcript ? (
                             <Popover 
                               placement="bottom-start" 
@@ -546,9 +564,9 @@ export default function PostPage() {
                               <PopoverTrigger>
                                 <Button 
                                   color="secondary" 
-                                  className="bg-purple-100 text-purple-700 rounded-full px-4"
+                                  className="bg-purple-100 text-purple-700 rounded-full px-4 w-full max-w-[160px] truncate"
                                   size="sm"
-                                  startContent={<DocumentTextIcon className="h-4 w-4" />}
+                                  startContent={<DocumentTextIcon className="h-4 w-4 flex-shrink-0" />}
                                 >
                                   Ver transcripción
                                 </Button>
@@ -589,10 +607,10 @@ export default function PostPage() {
                             <Button
                               color="secondary"
                               size="sm"
-                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4 w-full max-w-[160px] truncate"
                               isDisabled
                               startContent={
-                                <CircularProgress size="sm" color="secondary" className="mr-1" />
+                                <CircularProgress size="sm" color="secondary" className="mr-1 flex-shrink-0" />
                               }
                             >
                               <TranscriptLoadingMessage />
@@ -601,9 +619,9 @@ export default function PostPage() {
                             <Button
                               color="secondary"
                               size="sm"
-                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4 w-full max-w-[160px] truncate"
                               isDisabled
-                              startContent={<NoSymbolIcon className="h-4 w-4" />}
+                              startContent={<NoSymbolIcon className="h-4 w-4 flex-shrink-0" />}
                             >
                               Sin audio
                             </Button>
@@ -611,9 +629,9 @@ export default function PostPage() {
                             <Button
                               color="secondary"
                               size="sm"
-                              className="bg-purple-100 text-purple-700 rounded-full px-4"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4 w-full max-w-[160px] truncate"
                               onClick={handleTranscribe}
-                              startContent={<PlusIcon className="h-4 w-4" />}
+                              startContent={<PlusIcon className="h-4 w-4 flex-shrink-0" />}
                             >
                               Transcribir
                             </Button>
@@ -622,178 +640,157 @@ export default function PostPage() {
                       </div>
                       
                       <div>
-                        <p className="text-sm text-gray-600 mb-2">Duración</p>
-                        <div className="min-h-[28px]">
-                          {post?.media_type === 'VIDEO' ? (
-                            isAnalyzingVideo ? (
-                              <div className="flex items-center gap-2">
-                                <CircularProgress size="sm" color="secondary" />
-                                <span className="text-sm">Calculando...</span>
-                              </div>
-                            ) : videoAnalysis?.total_duration ? (
-                              <p className="font-medium flex items-center gap-2">
-                                <VideoCameraIcon className="h-4 w-4 text-purple-700" />
-                                <span>{formatDuration(videoAnalysis.total_duration)}</span>
-                              </p>
-                            ) : (
-                              <p className="text-gray-500">Sin duración</p>
-                            )
+                        <p className="text-sm text-gray-600 mb-2">Descripción</p>
+                        <div className="min-h-[28px] overflow-hidden">
+                          {videoAnalysis?.description ? (
+                            <Popover 
+                              placement="bottom-start" 
+                              showArrow
+                              offset={10}
+                            >
+                              <PopoverTrigger>
+                                <Button 
+                                  color="secondary" 
+                                  className="bg-purple-100 text-purple-700 rounded-full px-4 w-full max-w-[160px] truncate"
+                                  size="sm"
+                                  startContent={<DocumentTextIcon className="h-4 w-4 flex-shrink-0" />}
+                                >
+                                  Ver descripción
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-96 p-4">
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{videoAnalysis.description}</p>
+                              </PopoverContent>
+                            </Popover>
+                          ) : isAnalyzingVideo ? (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              className="bg-purple-100 text-purple-700 rounded-full px-4 w-full max-w-[160px] truncate"
+                              isDisabled
+                              startContent={<CircularProgress size="sm" color="secondary" className="mr-1 flex-shrink-0" />}
+                            >
+                              Analizando...
+                            </Button>
                           ) : (
-                            <p className="text-gray-500">No aplicable</p>
+                            <p className="text-gray-500">No disponible</p>
                           )}
                         </div>
                       </div>
                     </div>
                     
-                    {/* Detalles existentes */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-600">Fecha de publicación</p>
-                        <p className="font-medium">
-                          {post?.published_at && `${formatDate(post.published_at)} ${formatTime(post.published_at)}`}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Última actualización</p>
-                        <p className="font-medium">
-                          {post?.metrics_updated_at && `${formatDate(post.metrics_updated_at)} ${formatTime(post.metrics_updated_at)}`}
-                        </p>
+                    {/* Duración */}
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600 mb-2">Duración</p>
+                      <div className="min-h-[28px]">
+                        {post?.media_type === 'VIDEO' ? (
+                          isAnalyzingVideo ? (
+                            <div className="flex items-center gap-2">
+                              <CircularProgress size="sm" color="secondary" />
+                              <span className="text-sm">Calculando...</span>
+                            </div>
+                          ) : videoAnalysis?.total_duration ? (
+                            <p className="font-medium flex items-center gap-2">
+                              <VideoCameraIcon className="h-4 w-4 text-purple-700" />
+                              <span>{formatDuration(videoAnalysis.total_duration)}</span>
+                            </p>
+                          ) : (
+                            <p className="text-gray-500">Sin duración</p>
+                          )
+                        ) : (
+                          <p className="text-gray-500">No aplicable</p>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Engagement</h3>
-                    <Tabs 
-                      selectedKey={comparisonType} 
-                      onSelectionChange={setComparisonType}
-                      size="sm"
-                      variant="solid"
-                      color="secondary"
-                      className="max-w-[200px]"
-                    >
-                      <Tab 
-                        key="category" 
-                        title="Por categoría"
-                        isDisabled={!details?.post?.category_id}
-                      />
-                      <Tab key="global" title="Global" />
-                    </Tabs>
-                  </div>
-                  
-                  <div className="flex flex-col space-y-4">
-                    <MetricWithDiff 
-                      label="Likes" 
-                      value={details.post.likes} 
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.likes 
-                        : details.categoryRelativeMetrics?.likes
-                      } 
-                    />
-                    <MetricWithDiff 
-                      label="Comments" 
-                      value={details.post.comments} 
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.comments 
-                        : details.categoryRelativeMetrics?.comments
-                      }
-                    />
-                    <MetricWithDiff 
-                      label="Saves" 
-                      value={details.post.saves} 
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.saves 
-                        : details.categoryRelativeMetrics?.saves
-                      }
-                    />
-                    <MetricWithDiff 
-                      label="Shares" 
-                      value={details.post.shares} 
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.shares 
-                        : details.categoryRelativeMetrics?.shares
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">Rendimiento</h3>
-                    <Tabs 
-                      selectedKey={comparisonType} 
-                      onSelectionChange={setComparisonType}
-                      size="sm"
-                      variant="solid"
-                      color="secondary"
-                      className="max-w-[200px]"
-                    >
-                      <Tab 
-                        key="category" 
-                        title="Por categoría"
-                        isDisabled={!details?.post?.category_id}
-                      />
-                      <Tab key="global" title="Global" />
-                    </Tabs>
-                  </div>
-
-                  <div className="flex flex-col space-y-4">
-                    <MetricWithDiff 
-                      label="Views" 
-                      value={details.post.views} 
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.views 
-                        : details.categoryRelativeMetrics?.views
-                      }
-                    />
-                    <MetricWithDiff 
-                      label="Reach" 
-                      value={details.post.reach}
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.reach 
-                        : details.categoryRelativeMetrics?.reach
-                      }
-                    />
-                    <MetricWithDiff 
-                      label="Avg Watch Time" 
-                      value={details.post.avg_watch_time} 
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.watchTime 
-                        : details.categoryRelativeMetrics?.watchTime
-                      }
-                      formatter={(val) => `${val?.toFixed(2)}s`}
-                    />
-                    <MetricWithDiff 
-                      label="Total Watch Time" 
-                      value={details.post.total_watch_time}
-                      diff={comparisonType === 'global' 
-                        ? details.relativeMetrics.totalWatchTime 
-                        : details.categoryRelativeMetrics?.totalWatchTime
-                      }
-                      formatter={(val) => `${(val / 1000).toFixed(2)}s`}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Columna 3 - Análisis de Video (reemplaza Insights) */}
-            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Análisis de Contenido</h3>
-              </div>
-              
-              <div className="relative h-full overflow-auto">
-                {isAnalyzingVideo ? (
-                  <div className="flex flex-col items-center justify-center h-full">
-                    <CircularProgress className="mb-4" />
-                    <p className="text-gray-500">Analizando video...</p>
-                  </div>
-                ) : videoAnalysis ? (
-                  <div className="space-y-4">
-                    {videoAnalysis.error === 'VIDEO_TOO_LARGE' ? (
+                    
+                    {/* Metadata del análisis de video */}
+                    {(videoAnalysis && !videoAnalysis.error) || isAnalyzingVideo ? (
+                      <div className="space-y-4">
+                        {/* Número de tomas */}
+                        {isAnalyzingVideo ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Número de tomas</p>
+                            <div className="flex items-center gap-2">
+                              <CircularProgress size="sm" color="secondary" />
+                              <span className="text-sm">Calculando...</span>
+                            </div>
+                          </div>
+                        ) : videoAnalysis?.number_of_shots ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Número de tomas</p>
+                            <p className="font-medium">{videoAnalysis.number_of_shots}</p>
+                          </div>
+                        ) : null}
+                        
+                        {/* Tipos de audio */}
+                        {isAnalyzingVideo ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Tipos de audio</p>
+                            <div className="flex items-center gap-2">
+                              <CircularProgress size="sm" color="secondary" />
+                              <span className="text-sm">Analizando audio...</span>
+                            </div>
+                          </div>
+                        ) : videoAnalysis?.audio_types && videoAnalysis.audio_types.length > 0 ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Tipos de audio</p>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.audio_types.map((type, index) => (
+                                <span key={index} className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        
+                        {/* Tipos de texto */}
+                        {isAnalyzingVideo ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Tipos de texto</p>
+                            <div className="flex items-center gap-2">
+                              <CircularProgress size="sm" color="secondary" />
+                              <span className="text-sm">Analizando texto...</span>
+                            </div>
+                          </div>
+                        ) : videoAnalysis?.text_types && videoAnalysis.text_types.length > 0 ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Tipos de texto</p>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.text_types.map((type, index) => (
+                                <span key={index} className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                                  {type}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                        
+                        {/* Elementos clave */}
+                        {/* {isAnalyzingVideo ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Elementos clave</p>
+                            <div className="flex items-center gap-2">
+                              <CircularProgress size="sm" color="secondary" />
+                              <span className="text-sm">Identificando elementos...</span>
+                            </div>
+                          </div>
+                        ) : videoAnalysis?.key_elements && videoAnalysis.key_elements.length > 0 ? (
+                          <div>
+                            <p className="text-sm text-gray-600 mb-2">Elementos clave</p>
+                            <div className="flex flex-wrap gap-2">
+                              {videoAnalysis.key_elements.map((element, index) => (
+                                <span key={index} className="px-3 py-1.5 bg-gray-100 rounded-md text-sm font-medium text-gray-700">
+                                  {element}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null} */}
+                      </div>
+                    ) : null}
+                    
+                    {videoAnalysis && videoAnalysis.error === 'VIDEO_TOO_LARGE' && (
                       <div className="border border-red-200 rounded-lg p-4 bg-red-50">
                         <h4 className="text-sm font-semibold mb-2 text-red-700">Error: Video demasiado grande</h4>
                         <p className="text-sm text-red-600">{videoAnalysis.description}</p>
@@ -801,76 +798,135 @@ export default function PostPage() {
                           Intenta con un video más pequeño o de menor duración para poder analizarlo.
                         </p>
                       </div>
-                    ) : (
-                      <>
-                        <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                          <h4 className="text-sm font-semibold mb-2">Descripción</h4>
-                          <p className="text-sm text-gray-700">{videoAnalysis.description}</p>
-                        </div>
-                        
-                        {videoAnalysis.number_of_shots && (
-                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                            <h4 className="text-sm font-semibold mb-2">Número de tomas</h4>
-                            <p className="text-sm text-gray-700">{videoAnalysis.number_of_shots}</p>
-                          </div>
-                        )}
-                        
-                        {videoAnalysis.audio_types && videoAnalysis.audio_types.length > 0 && (
-                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                            <h4 className="text-sm font-semibold mb-2">Tipos de audio</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {videoAnalysis.audio_types.map((type, index) => (
-                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
-                                  {type}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {videoAnalysis.text_types && videoAnalysis.text_types.length > 0 && (
-                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                            <h4 className="text-sm font-semibold mb-2">Tipos de texto</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {videoAnalysis.text_types.map((type, index) => (
-                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
-                                  {type}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {videoAnalysis.key_elements && videoAnalysis.key_elements.length > 0 && (
-                          <div className="border border-gray-100 rounded-lg p-4 bg-white shadow-xs">
-                            <h4 className="text-sm font-semibold mb-2">Elementos clave</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {videoAnalysis.key_elements.map((element, index) => (
-                                <span key={index} className="px-2 py-1 bg-gray-100 rounded-full text-xs">
-                                  {element}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </>
                     )}
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                    {post?.media_type === 'VIDEO' ? (
-                      <>
-                        <CircularProgress className="mb-4" />
-                        <p>Cargando análisis de video...</p>
-                      </>
-                    ) : (
-                      <>
-                        <NoSymbolIcon className="w-12 h-12 mb-4 text-gray-300" />
-                        <p>El análisis de video solo está disponible para posts de tipo VIDEO</p>
-                      </>
-                    )}
+                </div>
+              </div>
+            </div>
+
+            {/* Columna 3 - Métricas */}
+            <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col h-full overflow-hidden">
+              <div className="flex flex-col overflow-auto pr-1">
+                <h3 className="text-lg font-semibold mb-4">Métricas</h3>
+                
+                {/* Container principal para las métricas */}
+                <div className="flex flex-col space-y-6">
+                  {/* Bloque de Engagement */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-base font-semibold text-gray-800">Engagement</h4>
+                      <Tabs 
+                        selectedKey={comparisonType} 
+                        onSelectionChange={setComparisonType}
+                        size="sm"
+                        variant="solid"
+                        color="secondary"
+                        className="max-w-[200px]"
+                      >
+                        <Tab 
+                          key="category" 
+                          title="Por categoría"
+                          isDisabled={!details?.post?.category_id}
+                        />
+                        <Tab key="global" title="Global" />
+                      </Tabs>
+                    </div>
+                    
+                    <div className="grid gap-3">
+                      <MetricWithDiff 
+                        label="Likes" 
+                        value={details.post.likes} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.likes 
+                          : details.categoryRelativeMetrics?.likes
+                        } 
+                      />
+                      <MetricWithDiff 
+                        label="Comments" 
+                        value={details.post.comments} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.comments 
+                          : details.categoryRelativeMetrics?.comments
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Saves" 
+                        value={details.post.saves} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.saves 
+                          : details.categoryRelativeMetrics?.saves
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Shares" 
+                        value={details.post.shares} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.shares 
+                          : details.categoryRelativeMetrics?.shares
+                        }
+                      />
+                    </div>
                   </div>
-                )}
+
+                  {/* Bloque de Rendimiento */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="text-base font-semibold text-gray-800">Rendimiento</h4>
+                      <Tabs 
+                        selectedKey={comparisonType} 
+                        onSelectionChange={setComparisonType}
+                        size="sm"
+                        variant="solid"
+                        color="secondary"
+                        className="max-w-[200px]"
+                      >
+                        <Tab 
+                          key="category" 
+                          title="Por categoría"
+                          isDisabled={!details?.post?.category_id}
+                        />
+                        <Tab key="global" title="Global" />
+                      </Tabs>
+                    </div>
+
+                    <div className="grid gap-3">
+                      <MetricWithDiff 
+                        label="Views" 
+                        value={details.post.views} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.views 
+                          : details.categoryRelativeMetrics?.views
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Reach" 
+                        value={details.post.reach}
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.reach 
+                          : details.categoryRelativeMetrics?.reach
+                        }
+                      />
+                      <MetricWithDiff 
+                        label="Avg Watch Time" 
+                        value={details.post.avg_watch_time} 
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.watchTime 
+                          : details.categoryRelativeMetrics?.watchTime
+                        }
+                        formatter={(val) => `${val?.toFixed(2)}s`}
+                      />
+                      <MetricWithDiff 
+                        label="Total Watch Time" 
+                        value={details.post.total_watch_time}
+                        diff={comparisonType === 'global' 
+                          ? details.relativeMetrics.totalWatchTime 
+                          : details.categoryRelativeMetrics?.totalWatchTime
+                        }
+                        formatter={(val) => `${(val / 1000).toFixed(2)}s`}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1138,10 +1194,10 @@ function LoadingMessage() {
 // Primero agregamos el componente (junto a LoadingMessage existente)
 function TranscriptLoadingMessage() {
   const messages = [
-    "Transcribiendo audio...",
-    "Procesando palabras...",
-    "Analizando contenido...",
-    "Generando transcripción...",
+    "Transcribiendo...",
+    "Procesando...",
+    "Analizando...",
+    "Generando..."
   ];
   const [messageIndex, setMessageIndex] = useState(0);
 
@@ -1152,5 +1208,5 @@ function TranscriptLoadingMessage() {
     return () => clearInterval(interval);
   }, []);
 
-  return <p className="text-gray-500 text-center">{messages[messageIndex]}</p>;
+  return <p className="text-gray-500 text-center truncate">{messages[messageIndex]}</p>;
 }
