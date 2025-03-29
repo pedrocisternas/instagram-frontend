@@ -2,18 +2,19 @@
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton, Image } from "@heroui/react";
+import { Button, Card, CardBody, Divider, Popover, PopoverTrigger, PopoverContent, Tabs, Tab, Tooltip, CircularProgress, Skeleton, Image, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 import { formatDate, formatTime, formatDuration, formatTranscriptTime } from '../../../utils/dateFormatters';
+import { translateAudioType, translateTextType, AUDIO_TYPE_TRANSLATIONS, TEXT_TYPE_TRANSLATIONS } from '../../../utils/videoAnalysisTranslations';
 import { APP_CONFIG } from '@/config/app';
 import { 
   assignCategoryToPost,
   assignSubcategoryToPost,
 } from '@/services/api/categories';
+import { generateVideoAnalysis, updateVideoAudioTypes, updateVideoTextTypes, updateVideoShots } from '@/services/api/videoAnalysis';
 import CategoryPopover from '@/components/categories/CategoryPopover';
 import { ChevronUpIcon, MagnifyingGlassIcon, ArrowTopRightOnSquareIcon, DocumentTextIcon, NoSymbolIcon, PlusIcon, VideoCameraIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { fetchPostDetails } from '@/services/api/posts';
 import { generateTranscript } from '@/services/api/transcripts';
-import { generateVideoAnalysis } from '@/services/api/videoAnalysis';
 import { getPostInsights, checkPostInsights } from '@/services/api/insights';
 import MetricWithDiff from '@/components/post/MetricWithDiff';
 import { useAuthStore } from '@/store/auth';
@@ -29,6 +30,11 @@ export default function PostPage() {
   const [error, setError] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isAnalyzingVideo, setIsAnalyzingVideo] = useState(false);
+  const [isUpdatingAudioTypes, setIsUpdatingAudioTypes] = useState(false);
+  const [isUpdatingTextTypes, setIsUpdatingTextTypes] = useState(false);
+  const [isEditingShots, setIsEditingShots] = useState(false);
+  const [isUpdatingShots, setIsUpdatingShots] = useState(false);
+  const [shotCount, setShotCount] = useState(0);
   const [insights, setInsights] = useState(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [insightsGeneratedAt, setInsightsGeneratedAt] = useState(null);
@@ -253,6 +259,164 @@ export default function PostPage() {
     }
   };
 
+  // Función para obtener los tipos de audio disponibles (que no estén ya seleccionados)
+  const getAvailableAudioTypes = () => {
+    if (!videoAnalysis?.audio_types) return Object.keys(AUDIO_TYPE_TRANSLATIONS);
+    
+    return Object.keys(AUDIO_TYPE_TRANSLATIONS).filter(
+      type => !videoAnalysis.audio_types.includes(type)
+    );
+  };
+
+  // Función para obtener los tipos de texto disponibles (que no estén ya seleccionados)
+  const getAvailableTextTypes = () => {
+    if (!videoAnalysis?.text_types) return Object.keys(TEXT_TYPE_TRANSLATIONS);
+    
+    return Object.keys(TEXT_TYPE_TRANSLATIONS).filter(
+      type => !videoAnalysis.text_types.includes(type)
+    );
+  };
+
+  // Manejar la adición de un nuevo tipo de audio
+  const handleAddAudioType = async (type) => {
+    if (!videoAnalysis || !user?.username) return;
+
+    // Creamos una copia de los tipos actuales y añadimos el nuevo
+    const updatedAudioTypes = [...(videoAnalysis.audio_types || []), type];
+
+    // Actualización optimista
+    setIsUpdatingAudioTypes(true);
+    const previousAudioTypes = videoAnalysis.audio_types;
+    
+    // Actualizamos el estado local inmediatamente
+    setVideoAnalysis({
+      ...videoAnalysis,
+      audio_types: updatedAudioTypes
+    });
+
+    try {
+      // Enviamos la actualización al backend
+      await updateVideoAudioTypes(details.post.id, user.username, updatedAudioTypes);
+      // En caso de éxito, no necesitamos hacer nada más
+    } catch (error) {
+      console.error('Error al actualizar tipos de audio:', error);
+      // Revertimos la actualización en caso de error
+      setVideoAnalysis({
+        ...videoAnalysis,
+        audio_types: previousAudioTypes
+      });
+      
+      // Aquí podríamos mostrar un mensaje de error al usuario
+    } finally {
+      setIsUpdatingAudioTypes(false);
+    }
+  };
+
+  // Manejar la adición de un nuevo tipo de texto
+  const handleAddTextType = async (type) => {
+    if (!videoAnalysis || !user?.username) return;
+
+    // Creamos una copia de los tipos actuales y añadimos el nuevo
+    const updatedTextTypes = [...(videoAnalysis.text_types || []), type];
+
+    // Actualización optimista
+    setIsUpdatingTextTypes(true);
+    const previousTextTypes = videoAnalysis.text_types;
+    
+    // Actualizamos el estado local inmediatamente
+    setVideoAnalysis({
+      ...videoAnalysis,
+      text_types: updatedTextTypes
+    });
+
+    try {
+      // Enviamos la actualización al backend
+      await updateVideoTextTypes(details.post.id, user.username, updatedTextTypes);
+      // En caso de éxito, no necesitamos hacer nada más
+    } catch (error) {
+      console.error('Error al actualizar tipos de texto:', error);
+      // Revertimos la actualización en caso de error
+      setVideoAnalysis({
+        ...videoAnalysis,
+        text_types: previousTextTypes
+      });
+      
+      // Aquí podríamos mostrar un mensaje de error al usuario
+    } finally {
+      setIsUpdatingTextTypes(false);
+    }
+  };
+
+  // Manejar la eliminación de un tipo de audio
+  const handleRemoveAudioType = async (typeToRemove) => {
+    if (!videoAnalysis || !user?.username) return;
+
+    // Creamos una copia de los tipos actuales y eliminamos el tipo
+    const updatedAudioTypes = videoAnalysis.audio_types.filter(type => type !== typeToRemove);
+
+    // Actualización optimista
+    setIsUpdatingAudioTypes(true);
+    const previousAudioTypes = videoAnalysis.audio_types;
+    
+    // Actualizamos el estado local inmediatamente
+    setVideoAnalysis({
+      ...videoAnalysis,
+      audio_types: updatedAudioTypes
+    });
+
+    try {
+      // Enviamos la actualización al backend
+      await updateVideoAudioTypes(details.post.id, user.username, updatedAudioTypes);
+      // En caso de éxito, no necesitamos hacer nada más
+    } catch (error) {
+      console.error('Error al eliminar tipo de audio:', error);
+      // Revertimos la actualización en caso de error
+      setVideoAnalysis({
+        ...videoAnalysis,
+        audio_types: previousAudioTypes
+      });
+      
+      // Aquí podríamos mostrar un mensaje de error al usuario
+    } finally {
+      setIsUpdatingAudioTypes(false);
+    }
+  };
+
+  // Manejar la eliminación de un tipo de texto
+  const handleRemoveTextType = async (typeToRemove) => {
+    if (!videoAnalysis || !user?.username) return;
+
+    // Creamos una copia de los tipos actuales y eliminamos el tipo
+    const updatedTextTypes = videoAnalysis.text_types.filter(type => type !== typeToRemove);
+
+    // Actualización optimista
+    setIsUpdatingTextTypes(true);
+    const previousTextTypes = videoAnalysis.text_types;
+    
+    // Actualizamos el estado local inmediatamente
+    setVideoAnalysis({
+      ...videoAnalysis,
+      text_types: updatedTextTypes
+    });
+
+    try {
+      // Enviamos la actualización al backend
+      await updateVideoTextTypes(details.post.id, user.username, updatedTextTypes);
+      // En caso de éxito, no necesitamos hacer nada más
+    } catch (error) {
+      console.error('Error al eliminar tipo de texto:', error);
+      // Revertimos la actualización en caso de error
+      setVideoAnalysis({
+        ...videoAnalysis,
+        text_types: previousTextTypes
+      });
+      
+      // Aquí podríamos mostrar un mensaje de error al usuario
+    } finally {
+      setIsUpdatingTextTypes(false);
+    }
+  };
+
   // Agregar el listener para el evento de sincronización
   useEffect(() => {
     const handleSync = async (event) => {
@@ -392,6 +556,65 @@ export default function PostPage() {
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(err => console.error('Error al copiar: ', err));
+  };
+
+  // Manejar la actualización del número de tomas
+  const handleUpdateShots = async () => {
+    if (!videoAnalysis || !user?.username) return;
+
+    // Validaciones básicas
+    const numberOfShots = parseInt(shotCount);
+    if (isNaN(numberOfShots) || numberOfShots < 1) {
+      // Si el número no es válido, volvemos a establecer el valor original
+      setShotCount(videoAnalysis.number_of_shots);
+      setIsEditingShots(false);
+      return;
+    }
+
+    // No hacemos nada si el número no cambió
+    if (numberOfShots === videoAnalysis.number_of_shots) {
+      setIsEditingShots(false);
+      return;
+    }
+
+    // Guardamos el valor original para revertir en caso de error
+    const originalShots = videoAnalysis.number_of_shots;
+    
+    // Actualización optimista
+    setIsUpdatingShots(true);
+    
+    // Actualizamos el estado local inmediatamente
+    setVideoAnalysis({
+      ...videoAnalysis,
+      number_of_shots: numberOfShots
+    });
+
+    try {
+      // Enviamos la actualización al backend
+      await updateVideoShots(details.post.id, user.username, numberOfShots);
+      // En caso de éxito, salimos del modo edición
+      setIsEditingShots(false);
+    } catch (error) {
+      console.error('Error al actualizar número de tomas:', error);
+      // Revertimos la actualización en caso de error
+      setVideoAnalysis({
+        ...videoAnalysis,
+        number_of_shots: originalShots
+      });
+      setShotCount(originalShots);
+    } finally {
+      setIsUpdatingShots(false);
+    }
+  };
+
+  const startEditingShots = () => {
+    setShotCount(videoAnalysis.number_of_shots);
+    setIsEditingShots(true);
+  };
+
+  const cancelEditingShots = () => {
+    setShotCount(videoAnalysis.number_of_shots);
+    setIsEditingShots(false);
   };
 
   return (
@@ -658,8 +881,12 @@ export default function PostPage() {
                                   Ver descripción
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-96 p-4">
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{videoAnalysis.description}</p>
+                              <PopoverContent className="w-96 p-0">
+                                <div className="relative">
+                                  <div className="max-h-96 overflow-y-auto p-4">
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{videoAnalysis.description}</p>
+                                  </div>
+                                </div>
                               </PopoverContent>
                             </Popover>
                           ) : isAnalyzingVideo ? (
@@ -718,53 +945,187 @@ export default function PostPage() {
                         ) : videoAnalysis?.number_of_shots ? (
                           <div>
                             <p className="text-sm text-gray-600 mb-2">Número de tomas</p>
-                            <p className="font-medium">{videoAnalysis.number_of_shots}</p>
+                            <div className="h-8 flex items-center">
+                              {isEditingShots ? (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={shotCount}
+                                    onChange={(e) => setShotCount(e.target.value)}
+                                    className="w-16 rounded border border-gray-300 px-2 py-1 text-sm"
+                                    disabled={isUpdatingShots}
+                                  />
+                                  <div className="flex gap-1">
+                                    <Button
+                                      size="sm"
+                                      color="primary"
+                                      variant="flat"
+                                      isIconOnly
+                                      onClick={handleUpdateShots}
+                                      isLoading={isUpdatingShots}
+                                      className="min-w-8 h-8"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                      </svg>
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      color="danger"
+                                      variant="flat"
+                                      isIconOnly
+                                      onClick={cancelEditingShots}
+                                      disabled={isUpdatingShots}
+                                      className="min-w-8 h-8"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="font-medium flex items-center group">
+                                  <span>{videoAnalysis.number_of_shots}</span>
+                                  <button 
+                                    onClick={startEditingShots}
+                                    className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-purple-500 hover:text-purple-700"
+                                    title="Editar"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                  </button>
+                                </p>
+                              )}
+                            </div>
                           </div>
                         ) : null}
                         
                         {/* Tipos de audio */}
-                        {isAnalyzingVideo ? (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Tipos de audio</p>
-                            <div className="flex items-center gap-2">
-                              <CircularProgress size="sm" color="secondary" />
-                              <span className="text-sm">Analizando audio...</span>
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">Tipos de audio</p>
+                          {!videoAnalysis ? (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <Skeleton className="h-6 w-24 rounded-full" />
+                              <Skeleton className="h-6 w-20 rounded-full" />
                             </div>
-                          </div>
-                        ) : videoAnalysis?.audio_types && videoAnalysis.audio_types.length > 0 ? (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Tipos de audio</p>
-                            <div className="flex flex-wrap gap-2">
-                              {videoAnalysis.audio_types.map((type, index) => (
-                                <span key={index} className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                                  {type}
-                                </span>
-                              ))}
+                          ) : videoAnalysisError ? (
+                            <p className="mt-1 text-sm text-gray-600">Error al cargar tipos de audio</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2 mt-1 items-center">
+                              {videoAnalysis.audio_types && videoAnalysis.audio_types.length > 0 && (
+                                videoAnalysis.audio_types.map((type, index) => (
+                                  <span
+                                    key={index}
+                                    className="group px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium flex items-center"
+                                  >
+                                    {translateAudioType(type)}
+                                    <button 
+                                      onClick={() => handleRemoveAudioType(type)}
+                                      className="ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-purple-500 hover:text-purple-700"
+                                      title="Eliminar"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  </span>
+                                ))
+                              )}
+                              
+                              {/* Dropdown para agregar nuevos tipos de audio - ahora siempre visible */}
+                              {getAvailableAudioTypes().length > 0 && (
+                                <Dropdown>
+                                  <DropdownTrigger>
+                                    <Button 
+                                      isIconOnly 
+                                      size="sm" 
+                                      variant="flat" 
+                                      className="rounded-full bg-purple-50 text-purple-700"
+                                      isLoading={isUpdatingAudioTypes}
+                                    >
+                                      {!isUpdatingAudioTypes && <PlusIcon className="h-4 w-4" />}
+                                    </Button>
+                                  </DropdownTrigger>
+                                  <DropdownMenu aria-label="Agregar tipo de audio">
+                                    {getAvailableAudioTypes().map((type) => (
+                                      <DropdownItem 
+                                        key={type} 
+                                        onClick={() => handleAddAudioType(type)}
+                                      >
+                                        {translateAudioType(type)}
+                                      </DropdownItem>
+                                    ))}
+                                  </DropdownMenu>
+                                </Dropdown>
+                              )}
                             </div>
-                          </div>
-                        ) : null}
+                          )}
+                        </div>
                         
                         {/* Tipos de texto */}
-                        {isAnalyzingVideo ? (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Tipos de texto</p>
-                            <div className="flex items-center gap-2">
-                              <CircularProgress size="sm" color="secondary" />
-                              <span className="text-sm">Analizando texto...</span>
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-2">Tipos de texto</p>
+                          {!videoAnalysis ? (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <Skeleton className="h-6 w-24 rounded-full" />
+                              <Skeleton className="h-6 w-20 rounded-full" />
                             </div>
-                          </div>
-                        ) : videoAnalysis?.text_types && videoAnalysis.text_types.length > 0 ? (
-                          <div>
-                            <p className="text-sm text-gray-600 mb-2">Tipos de texto</p>
-                            <div className="flex flex-wrap gap-2">
-                              {videoAnalysis.text_types.map((type, index) => (
-                                <span key={index} className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                                  {type}
-                                </span>
-                              ))}
+                          ) : videoAnalysisError ? (
+                            <p className="mt-1 text-sm text-gray-600">Error al cargar tipos de texto</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2 mt-1 items-center">
+                              {videoAnalysis.text_types && videoAnalysis.text_types.length > 0 && (
+                                videoAnalysis.text_types.map((type, index) => (
+                                  <span
+                                    key={index}
+                                    className="group px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium flex items-center"
+                                  >
+                                    {translateTextType(type)}
+                                    <button 
+                                      onClick={() => handleRemoveTextType(type)}
+                                      className="ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-purple-500 hover:text-purple-700"
+                                      title="Eliminar"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                      </svg>
+                                    </button>
+                                  </span>
+                                ))
+                              )}
+                              
+                              {/* Dropdown para agregar nuevos tipos de texto - ahora siempre visible */}
+                              {getAvailableTextTypes().length > 0 && (
+                                <Dropdown>
+                                  <DropdownTrigger>
+                                    <Button 
+                                      isIconOnly 
+                                      size="sm" 
+                                      variant="flat" 
+                                      className="rounded-full bg-purple-50 text-purple-700"
+                                      isLoading={isUpdatingTextTypes}
+                                    >
+                                      {!isUpdatingTextTypes && <PlusIcon className="h-4 w-4" />}
+                                    </Button>
+                                  </DropdownTrigger>
+                                  <DropdownMenu aria-label="Agregar tipo de texto">
+                                    {getAvailableTextTypes().map((type) => (
+                                      <DropdownItem 
+                                        key={type} 
+                                        onClick={() => handleAddTextType(type)}
+                                      >
+                                        {translateTextType(type)}
+                                      </DropdownItem>
+                                    ))}
+                                  </DropdownMenu>
+                                </Dropdown>
+                              )}
                             </div>
-                          </div>
-                        ) : null}
+                          )}
+                        </div>
                         
                         {/* Elementos clave */}
                         {/* {isAnalyzingVideo ? (
