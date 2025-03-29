@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    domains: [
+      'scontent.fscl13-2.fna.fbcdn.net',   // Facebook/Instagram CDN domain from the error
+      'scontent.cdninstagram.com',          // Common Instagram CDN domain
+      'scontent-mia3-1.cdninstagram.com',   // Another Instagram CDN domain pattern
+      'scontent-mia3-2.cdninstagram.com',
+      'instagram.fscl13-1.fna.fbcdn.net',   // Another common pattern
+      'instagram.fscl13-2.fna.fbcdn.net',
+      'graph.facebook.com',                 // Graph API profile pictures
+      'platform-lookaside.fbsbx.com',       // Facebook profile pictures
+      'scontent.xx.fbcdn.net',              // General Facebook CDN
+    ],
     remotePatterns: [
       {
         protocol: 'https',

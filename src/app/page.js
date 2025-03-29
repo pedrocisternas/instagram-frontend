@@ -56,6 +56,7 @@ export default function Home() {
   const [postsPerPage, setPostsPerPage] = useState(APP_CONFIG.POSTS_PER_PAGE);
   const tableRef = useRef(null);
   const mainContainerRef = useRef(null);
+  const [selectedDays, setSelectedDays] = useState(0);
 
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
@@ -101,6 +102,9 @@ export default function Home() {
 
   // Modificar la función de filtrado para incluir categorías y subcategorías
   const filteredPosts = useMemo(() => {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - selectedDays);
+
     return allPosts.filter(post => {
       const typeMatch = selectedTypes.size === 0 || 
         selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type);
@@ -110,10 +114,12 @@ export default function Home() {
       
       const subcategoryMatch = selectedSubcategories.size === 0 ||
         (post.subcategory_id && selectedSubcategories.has(post.subcategory_id));
+
+      const dateMatch = selectedDays === 0 || new Date(post.published_at) >= cutoffDate;
       
-      return typeMatch && categoryMatch && subcategoryMatch;
+      return typeMatch && categoryMatch && subcategoryMatch && dateMatch;
     });
-  }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories]);
+  }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories, selectedDays]);
 
   // Calculate posts per page based on window height
   const calculatePostsPerPage = () => {
@@ -454,9 +460,11 @@ export default function Home() {
             subcategories={subcategories}
             sortField={sortField}
             sortDirection={sortDirection}
+            selectedDays={selectedDays}
             onTypeChange={setSelectedTypes}
             onCategoryChange={setSelectedCategories}
             onSubcategoryChange={setSelectedSubcategories}
+            onDaysChange={setSelectedDays}
             onSortReset={() => {
               setSortField('published_at');
               setSortDirection('desc');
