@@ -40,13 +40,8 @@ export default function Home() {
   // Estados
   const [allPosts, setAllPosts] = useState([]);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      return parseInt(params.get('page')) || 1;
-    }
-    return 1;
-  });
+  const [page, setPage] = useState(1);
+  const [isClientSide, setIsClientSide] = useState(false);
   const [sortField, setSortField] = useState('published_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [selectedTypes, setSelectedTypes] = useState(new Set([]));
@@ -283,12 +278,26 @@ export default function Home() {
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   };
 
-  // Effects
+  // Efecto para manejar la inicialización en el cliente
   useEffect(() => {
-    if (user?.username) {
+    // Marcar que estamos en el cliente
+    setIsClientSide(true);
+    
+    // Inicializar la página desde la URL solo en el cliente
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = parseInt(params.get('page'));
+    if (pageParam && !isNaN(pageParam)) {
+      setPage(pageParam);
+    }
+  }, []);
+
+  // Modificar el efecto de carga inicial
+  useEffect(() => {
+    // Solo ejecutar cuando estamos en el cliente y tenemos el username
+    if (isClientSide && user?.username) {
       fetchAllData();
     }
-  }, [user?.username]);
+  }, [isClientSide, user?.username]);
 
   const handleCreateSubcategory = async (categoryId) => {
     try {
@@ -389,19 +398,23 @@ export default function Home() {
     }
   }, [totalPages, page]);
 
-  // Add this helper function before the return statement
+  // Modificar la función sanitizeCaption para evitar errores del DOM en SSR
   const sanitizeCaption = (caption) => {
     if (!caption) return '';
     
-    // First, create a text node to ensure all HTML is properly escaped
+    // Verificar que estamos en el cliente antes de usar APIs del DOM
+    if (typeof document === 'undefined') {
+      // Si estamos en el servidor, solo devolvemos el caption limpio básico
+      return caption.replace(/<[^>]*>/g, '');
+    }
+    
+    // Código existente del cliente
     const div = document.createElement('div');
     div.textContent = caption;
     let sanitized = div.innerHTML;
     
     // Additional handling for URLs to prevent tooltip parsing issues
-    // Replace spaces with non-breaking spaces in URLs to help preserve format
     sanitized = sanitized.replace(/(https?:\/\/[^\s]+)/g, (url) => {
-      // Encode problematic characters in URLs
       return url
         .replace(/&/g, '&amp;')
         .replace(/\?/g, '&#63;')
