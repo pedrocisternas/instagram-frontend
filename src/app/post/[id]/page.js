@@ -897,7 +897,7 @@ export default function PostPage() {
                               isDisabled
                               startContent={<CircularProgress size="sm" color="secondary" className="mr-1 flex-shrink-0" />}
                             >
-                              Analizando...
+                              <VideoAnalysisLoadingMessage />
                             </Button>
                           ) : (
                             <p className="text-gray-500">No disponible</p>
@@ -1569,5 +1569,25 @@ function TranscriptLoadingMessage() {
     return () => clearInterval(interval);
   }, []);
 
-  return <p className="text-gray-500 text-center truncate">{messages[messageIndex]}</p>;
+  return <p className="text-purple-700 text-center truncate">{messages[messageIndex]}</p>;
+}
+
+// Component for video analysis loading with shorter messages
+function VideoAnalysisLoadingMessage() {
+  const messages = [
+    "Analizando...",
+    "Explorando...",
+    "Procesando...",
+    "Evaluando..."
+  ];
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % messages.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <p className="text-purple-700 text-center truncate">{messages[messageIndex]}</p>;
 }
