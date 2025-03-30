@@ -566,7 +566,7 @@ export default function PostPage() {
     const numberOfShots = parseInt(shotCount);
     if (isNaN(numberOfShots) || numberOfShots < 1) {
       // Si el número no es válido, volvemos a establecer el valor original
-      setShotCount(videoAnalysis.number_of_shots);
+      setShotCount(videoAnalysis.number_of_shots || 0);
       setIsEditingShots(false);
       return;
     }
@@ -578,7 +578,7 @@ export default function PostPage() {
     }
 
     // Guardamos el valor original para revertir en caso de error
-    const originalShots = videoAnalysis.number_of_shots;
+    const originalShots = videoAnalysis.number_of_shots || 0;
     
     // Actualización optimista
     setIsUpdatingShots(true);
@@ -608,12 +608,12 @@ export default function PostPage() {
   };
 
   const startEditingShots = () => {
-    setShotCount(videoAnalysis.number_of_shots);
+    setShotCount(videoAnalysis?.number_of_shots || 0);
     setIsEditingShots(true);
   };
 
   const cancelEditingShots = () => {
-    setShotCount(videoAnalysis.number_of_shots);
+    setShotCount(videoAnalysis?.number_of_shots || 0);
     setIsEditingShots(false);
   };
 
@@ -942,7 +942,7 @@ export default function PostPage() {
                               <span className="text-sm">Calculando...</span>
                             </div>
                           </div>
-                        ) : videoAnalysis?.number_of_shots ? (
+                        ) : (
                           <div>
                             <p className="text-sm text-gray-600 mb-2">Número de tomas</p>
                             <div className="h-8 flex items-center">
@@ -987,7 +987,7 @@ export default function PostPage() {
                                 </div>
                               ) : (
                                 <p className="font-medium flex items-center group">
-                                  <span>{videoAnalysis.number_of_shots}</span>
+                                  <span>{videoAnalysis?.number_of_shots ?? 0}</span>
                                   <button 
                                     onClick={startEditingShots}
                                     className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-purple-500 hover:text-purple-700"
@@ -1001,7 +1001,7 @@ export default function PostPage() {
                               )}
                             </div>
                           </div>
-                        ) : null}
+                        )}
                         
                         {/* Tipos de audio */}
                         <div className="mt-2">
