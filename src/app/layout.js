@@ -7,8 +7,13 @@ import Sidebar from '@/components/layout/Sidebar'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'Instagram Analytics Dashboard',
-  description: 'Dashboard de análisis de métricas de Instagram',
+  title: 'PiruMetrics',
+  description: 'Análisis de métricas de Instagram',
+  icons: {
+    icon: '/images/logo.png',
+    apple: '/images/logo.png',
+    shortcut: '/images/logo.png'
+  },
 }
 
 export const viewport = {
