@@ -14,7 +14,7 @@ import {
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
 import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel';
-import { fetchDashboardData, fetchDashboardTable } from '@/services/api/posts';
+import { fetchDashboardTable, fetchStatsSummary } from '@/services/api/posts';
 import { 
   fetchCategories, 
   createCategory, 
@@ -58,6 +58,9 @@ export default function Home() {
   const [selectedDays, setSelectedDays] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  // Nuevos estados para el panel de resumen
+  const [summaryPosts, setSummaryPosts] = useState([]);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
@@ -69,11 +72,9 @@ export default function Home() {
         setIsInitialLoading(false);
         return;
       }
-      
-      // Activar estado de carga
+
       setIsLoading(true);
 
-      // Crear objeto de filtros con los valores actuales
       const filters = {
         types: selectedTypes,
         categories: selectedCategories,
@@ -82,7 +83,7 @@ export default function Home() {
         page: pageToFetch,
         sortField: sortField,
         sortDirection: sortDirection,
-        ...customFilters // Permite sobreescribir filtros si se pasan en customFilters
+        ...customFilters 
       };
       
       const data = await fetchDashboardTable(user.username, filters);
@@ -90,21 +91,9 @@ export default function Home() {
       setCategories(data.categories);
       setSubcategories(data.subcategories);
       
-      // Actualizar información de paginación si está disponible
       if (data.pagination) {
         setPage(data.pagination.page);
         setTotalPages(data.pagination.totalPages);
-        
-        // Debug para verificar el valor de totalPages
-        console.log('Pagination info:', {
-          page: data.pagination.page, 
-          totalPages: data.pagination.totalPages,
-          totalPosts: data.pagination.total,
-          filteredTypesCount: filters.types?.size || 0,
-          filteredCategoriesCount: filters.categories?.size || 0,
-          filteredSubcategoriesCount: filters.subcategories?.size || 0,
-          filteredDays: filters.days || 0
-        });
       }
 
       if (data.posts.length > 0) {
@@ -118,7 +107,33 @@ export default function Home() {
       setError(error.message);
     } finally {
       setIsInitialLoading(false);
-      setIsLoading(false); // Desactivar estado de carga
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSummaryData = async (customFilters = {}) => {
+    try {
+      if (!user?.username) {
+        console.log('(fetchSummaryData) No username available, skipping data fetch');
+        return;
+      }
+
+      setIsSummaryLoading(true);
+
+      const filters = {
+        types: selectedTypes,
+        categories: selectedCategories,
+        subcategories: selectedSubcategories,
+        days: selectedDays,
+        ...customFilters 
+      };
+      
+      const data = await fetchStatsSummary(user.username, filters);
+      setSummaryPosts(data.posts);
+    } catch (error) {
+      console.error('(fetchSummaryData) Error loading summary data:', error);
+    } finally {
+      setIsSummaryLoading(false);
     }
   };
 
@@ -127,6 +142,7 @@ export default function Home() {
       setIsLoading(true); // Activar estado de carga durante la sincronización
       await syncMetrics();
       await fetchTableData();
+      await fetchSummaryData();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -211,7 +227,7 @@ export default function Home() {
 
   // Efecto para manejar la inicialización en el cliente
   useEffect(() => {
-    // Marcar que estamos en el cliente
+
     setIsClientSide(true);
     
     // Inicializar la página desde la URL solo en el cliente
@@ -222,9 +238,7 @@ export default function Home() {
     }
   }, []);
 
-  // En el useEffect donde cambian los filtros, asegurarnos de volver a la página 1
   useEffect(() => {
-    // Solo ejecutar cuando estamos en el cliente y ya se hizo la carga inicial
     if (isClientSide && !isInitialLoading && user?.username) {
       // Al cambiar los filtros, volvemos siempre a la página 1
       // También actualizamos la URL para reflejar que estamos en la página 1
@@ -232,7 +246,9 @@ export default function Home() {
       params.set('page', '1');
       window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
       
-      fetchTableData(1); // Volver a la página 1 cuando cambian los filtros
+      // Cargar los datos de la tabla y del resumen por separado
+      fetchTableData(1);
+      fetchSummaryData();
     }
   }, [selectedTypes, selectedCategories, selectedSubcategories, selectedDays, isClientSide, isInitialLoading, user?.username]);
 
@@ -241,6 +257,7 @@ export default function Home() {
     // Solo ejecutar cuando estamos en el cliente y tenemos el username
     if (isClientSide && user?.username) {
       fetchTableData();
+      fetchSummaryData();
     }
   }, [isClientSide, user?.username]);
 
@@ -330,34 +347,6 @@ export default function Home() {
     }
   }, [authState, router]);
 
-  // Modificar la función sanitizeCaption para evitar errores del DOM en SSR
-  const sanitizeCaption = (caption) => {
-    if (!caption) return '';
-    
-    // Verificar que estamos en el cliente antes de usar APIs del DOM
-    if (typeof document === 'undefined') {
-      // Si estamos en el servidor, solo devolvemos el caption limpio básico
-      return caption.replace(/<[^>]*>/g, '');
-    }
-    
-    // Código existente del cliente
-    const div = document.createElement('div');
-    div.textContent = caption;
-    let sanitized = div.innerHTML;
-    
-    // Additional handling for URLs to prevent tooltip parsing issues
-    sanitized = sanitized.replace(/(https?:\/\/[^\s]+)/g, (url) => {
-      return url
-        .replace(/&/g, '&amp;')
-        .replace(/\?/g, '&#63;')
-        .replace(/=/g, '&#61;')
-        .replace(/%/g, '&#37;')
-        .replace(/\//g, '&#47;');
-    });
-    
-    return sanitized;
-  };
-
   // Manejadores de filtros actualizados para recargar datos
   const handleTypeChange = (newTypes) => {
     setSelectedTypes(newTypes);
@@ -389,7 +378,7 @@ export default function Home() {
     setSortField('published_at');
     setSortDirection('desc');
     // Forzar recarga con filtros limpios
-    fetchTableData(1, {
+    const cleanFilters = {
       types: new Set([]),
       categories: new Set([]),
       subcategories: new Set([]),
@@ -397,7 +386,11 @@ export default function Home() {
       sortField: 'published_at',
       sortDirection: 'desc',
       page: 1
-    });
+    };
+    
+    // Recargar tanto la tabla como el resumen
+    fetchTableData(1, cleanFilters);
+    fetchSummaryData(cleanFilters);
   };
 
   // Modificar la lógica de loading
@@ -443,8 +436,7 @@ export default function Home() {
           />
         </div>
 
-        {/* Add the stats panel here, using allPosts */}
-        <StatsSummaryPanel posts={allPosts} />
+        <StatsSummaryPanel posts={summaryPosts} isLoading={isSummaryLoading} />
 
         <Table removeWrapper aria-label="Instagram posts table" ref={tableRef}>
           <TableHeader>
@@ -491,10 +483,8 @@ export default function Home() {
                   ))}
                 </TableRow>
               ))
-            ) : allPosts.length === 0 ? (
-              // Mostrar mensaje cuando no hay posts que mostrar              
+            ) : allPosts.length === 0 ? (    
               <TableRow>
-                {/* Primera celda con el mensaje, las demás vacías */}
                 <TableCell>
                   <div className="flex flex-col items-center justify-center text-gray-500 py-10">
                     <p className="text-lg font-medium">No se encontraron publicaciones</p>
@@ -509,7 +499,6 @@ export default function Home() {
                     </Button>
                   </div>
                 </TableCell>
-                {/* Agregar las 10 celdas restantes para completar las 11 columnas */}
                 <TableCell />
                 <TableCell />
                 <TableCell />
@@ -539,7 +528,7 @@ export default function Home() {
                                 whiteSpace: 'pre-wrap', 
                                 wordBreak: 'break-word' 
                               }}>
-                                {sanitizeCaption(post.caption)}
+                                {post.caption}
                               </div>
                             }
                             placement="top"
