@@ -34,7 +34,7 @@ export default {
           carousel: {
             text: '#EA580C',
             bg: '#FFF7ED',
-          }
+          },
         },
         // Paleta de 15 colores pasteles para categorías
         categoryPalette: {
