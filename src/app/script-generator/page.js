@@ -355,15 +355,13 @@ export default function ScriptGeneratorPage() {
           try {
             // Extract from the nested structure
             const analysis = rawAnalysisData.analysis || {};
-            const whisperData = session?.data?.data?.whisper_analysis;
             
             console.log("[Frontend] Extracted analysis:", analysis);
-            console.log("[Frontend] Extracted whisper data:", whisperData);
             
             // Map fields to expected structure
             analysisData = {
-              // Description from transcript or detailed description
-              description: whisperData?.transcript || "No hay descripción disponible",
+              // Description from transcript in Gemini analysis
+              description: analysis.TRANSCRIPTION || "No hay descripción disponible",
               
               // Key elements from KEY_TOPICS
               key_elements: analysis.KEY_TOPICS || [],
@@ -372,11 +370,11 @@ export default function ScriptGeneratorPage() {
               audio_types: ["voice_over"], // Default assuming voice over
               text_types: ["complementary_text"], // Default assuming text overlays
               number_of_shots: Object.keys(analysis.DETAILED_DESCRIPTION || {}).length || 0,
-              has_call_to_action: whisperData?.transcript?.toLowerCase().includes("don't") || false,
+              has_call_to_action: analysis.TRANSCRIPTION?.toLowerCase().includes("don't") || false,
               
-              // If available, total duration from the last segment's end time
-              total_duration: whisperData?.segments ? 
-                parseFloat(whisperData.segments[whisperData.segments.length - 1].endTime.split(':')[1]) : 0
+              // If available, estimate duration based on text length
+              total_duration: analysis.TRANSCRIPTION ? 
+                Math.max(30, Math.ceil(analysis.TRANSCRIPTION.length / 15)) : 30
             };
             
             console.log("[Frontend] Structured analysis data:", analysisData);
