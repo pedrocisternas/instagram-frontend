@@ -16,6 +16,7 @@ import QuestionForm from '@/components/script-generator/QuestionForm';
 import GenerationProgress from '@/components/script-generator/GenerationProgress';
 import ScriptResult from '@/components/script-generator/ScriptResult';
 import ScriptHistory from '@/components/script-generator/ScriptHistory';
+import AnalysisQuestionsSection from '@/components/script-generator/AnalysisQuestionsSection';
 import { 
   Spinner, 
   Card, 
@@ -56,6 +57,9 @@ export default function ScriptGeneratorPage() {
   // Polling interval for checking session status
   const [pollingActive, setPollingActive] = useState(false);
   
+  // Add new state for analysis progress
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  
   // Load initial data
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -63,12 +67,24 @@ export default function ScriptGeneratorPage() {
     }
   }, [isAuthenticated, user]);
   
-  // Poll for session updates
+  // Poll for session updates - update to increment progress
   useEffect(() => {
     let intervalId;
     
     if (pollingActive) {
       console.log("[Frontend] Starting polling for session updates");
+      
+      // Add progress simulation
+      let progressInterval;
+      if (stage === STAGES.ANALYZING) {
+        progressInterval = setInterval(() => {
+          setAnalysisProgress(prev => {
+            // Cap at 90% - the final 10% happens when analysis is complete
+            return prev < 90 ? prev + 5 : prev;
+          });
+        }, 3000); // Increase every 3 seconds
+      }
+      
       intervalId = setInterval(async () => {
         try {
           const responseData = await getSession();
@@ -91,11 +107,14 @@ export default function ScriptGeneratorPage() {
           // Update stage based on session status
           if (sessionData.stage === 'analysis_complete') {
             console.log("[Frontend] Setting stage to ANALYSIS_COMPLETE and stopping polling");
+            setAnalysisProgress(100); // Completed!
             setStage(STAGES.ANALYSIS_COMPLETE);
             setPollingActive(false);
           } else if (sessionData.data?.gemini_analysis || sessionData.gemini_analysis) {
             // We have analysis data even if stage isn't set correctly
             console.log("[Frontend] Analysis data found even though stage isn't analysis_complete");
+            setAnalysisProgress(100); // Completed!
+            setSession(sessionData);
             setStage(STAGES.ANALYSIS_COMPLETE);
             setPollingActive(false);
           } else if (sessionData.stage === 'questions_generated') {
@@ -117,6 +136,16 @@ export default function ScriptGeneratorPage() {
           // Don't stop polling on errors
         }
       }, 3000); // Poll every 3 seconds
+      
+      return () => {
+        if (intervalId) {
+          console.log("[Frontend] Cleaning up polling interval");
+          clearInterval(intervalId);
+        }
+        if (progressInterval) {
+          clearInterval(progressInterval);
+        }
+      };
     } else {
       console.log("[Frontend] Polling is not active");
     }
@@ -127,7 +156,7 @@ export default function ScriptGeneratorPage() {
         clearInterval(intervalId);
       }
     };
-  }, [pollingActive]);
+  }, [pollingActive, stage]);
   
   const loadInitialData = async () => {
     try {
@@ -248,35 +277,47 @@ export default function ScriptGeneratorPage() {
   
   const handleGenerateQuestions = async () => {
     setError(null);
-    setQuestions([]);
     
-    try {
-      const result = await generateQuestions();
-      setQuestions(result.questions || []);
-      setStage(STAGES.QUESTIONS);
-    } catch (err) {
-      console.error('Error generating questions:', err);
-      setError(err.message || 'Error generating questions');
-    }
+    // For now, just show an alert since we haven't fully implemented this feature
+    alert("Esta funcionalidad estará disponible próximamente. Por ahora, puedes intentar analizar otro video.");
+    setStage(STAGES.INPUT);
   };
   
-  const handleSubmitAnswers = async (data) => {
-    setError(null);
-    setTitle(data.title);
-    setStage(STAGES.GENERATING);
+  // New function to handle question answers during analysis
+  const handleSubmitAnswers = async (answers) => {
+    if (!session) {
+      setError("No hay una sesión activa");
+      return;
+    }
+    
+    console.log("[Frontend] Submitting answers:", answers);
     
     try {
-      await submitAnswers(data.answers);
+      // Format the answers for the API
+      const formattedAnswers = {
+        answers: answers
+      };
       
-      // Generate the script
-      const result = await generateScript();
-      setScript(result);
-      setStage(STAGES.RESULT);
-      loadScriptHistory(); // Refresh history
+      // Save answers to session
+      await submitAnswers(formattedAnswers);
+      
+      console.log("[Frontend] Answers submitted successfully");
+      
+      // If analysis is complete, show a confirmation message
+      if (stage === STAGES.ANALYZING) {
+        // Don't move to questions yet since we don't have that step implemented
+        // Just notify the user their answers were saved
+        setError(null); // Clear any errors
+        alert("Tus respuestas fueron guardadas. Continua esperando a que se complete el análisis.");
+      } else if (stage === STAGES.ANALYSIS_COMPLETE) {
+        // Just show a notification that answers were saved
+        setError(null);
+        alert("Tus respuestas fueron guardadas correctamente. Puedes continuar al siguiente paso cuando estés listo.");
+      }
+      
     } catch (err) {
-      console.error('Error generating script:', err);
-      setError(err.message || 'Error generating script');
-      setStage(STAGES.QUESTIONS);
+      console.error('[Frontend] Error submitting answers:', err);
+      setError(err.message || 'Error guardando respuestas');
     }
   };
   
@@ -328,43 +369,57 @@ export default function ScriptGeneratorPage() {
         );
       case STAGES.ANALYZING:
         return (
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-bold">Analizando Video</h2>
-            </CardHeader>
-            <CardBody className="flex flex-col items-center justify-center py-10">
-              <Spinner size="xl" className="mb-4" />
-              <p className="text-gray-600">
-                Estamos analizando el video de referencia. Este proceso puede tomar hasta 1 minuto.
-              </p>
-            </CardBody>
-          </Card>
+          <AnalysisQuestionsSection
+            isAnalyzing={true}
+            analysisProgress={analysisProgress}
+            onSubmitAnswers={handleSubmitAnswers}
+          />
         );
       case STAGES.ANALYSIS_COMPLETE:
         // Get the raw analysis data from wherever it exists
-        const rawAnalysisData = 
+        let rawAnalysisData = 
           session?.data?.data?.gemini_analysis ||
+          session?.data?.gemini_analysis || 
           session?.gemini_analysis;
         
+        console.log("[Frontend] Session data structure:", JSON.stringify(session, null, 2));
         console.log("[Frontend] Raw analysis data found:", !!rawAnalysisData);
+        console.log("[Frontend] Raw analysis data type:", typeof rawAnalysisData);
         
-        // Extract actual analysis from the nested structure
+        // Initialize analysisData variable
         let analysisData = null;
-        if (rawAnalysisData) {
-          // Create a properly structured analysis object
+        
+        // For safety, access the transcription directly if analysis structure can't be found
+        if (!rawAnalysisData && session?.transcript?.content) {
+          console.log("[Frontend] Using transcript directly from session");
+          // Create minimalist analysis data from transcript
+          const transcription = session.transcript.content;
+          analysisData = {
+            description: transcription,
+            key_elements: session?.description?.key_topics || [],
+            audio_types: ["voice_over"],
+            text_types: ["complementary_text"],
+            number_of_shots: 0,
+            has_call_to_action: false,
+            total_duration: transcription ? Math.max(30, Math.ceil(transcription.length / 15)) : 30
+          };
+        } else {
+          // Extract actual analysis from the nested structure
           try {
             // Extract from the nested structure
-            const analysis = rawAnalysisData.analysis || {};
+            const analysis = rawAnalysisData?.analysis || {};
             
-            console.log("[Frontend] Extracted analysis:", analysis);
+            console.log("[Frontend] Extracted analysis keys:", Object.keys(analysis));
+            console.log("[Frontend] TRANSCRIPTION exists:", !!analysis.TRANSCRIPTION);
+            console.log("[Frontend] KEY_TOPICS exists:", !!analysis.KEY_TOPICS);
             
             // Map fields to expected structure
             analysisData = {
               // Description from transcript in Gemini analysis
-              description: analysis.TRANSCRIPTION || "No hay descripción disponible",
+              description: analysis.TRANSCRIPTION || session?.transcript?.content || "No hay descripción disponible",
               
               // Key elements from KEY_TOPICS
-              key_elements: analysis.KEY_TOPICS || [],
+              key_elements: analysis.KEY_TOPICS || session?.description?.key_topics || [],
               
               // Use available data or default values
               audio_types: ["voice_over"], // Default assuming voice over
@@ -380,7 +435,25 @@ export default function ScriptGeneratorPage() {
             console.log("[Frontend] Structured analysis data:", analysisData);
           } catch (err) {
             console.error("[Frontend] Error processing analysis data:", err);
-            // If there's an error, we'll use null and trigger the error state
+            console.error("[Frontend] Error stack:", err.stack);
+            
+            // Fallback in case of error - create minimal data from session
+            try {
+              console.log("[Frontend] Using fallback data from session");
+              const transcription = session?.transcript?.content || "";
+              analysisData = {
+                description: transcription || "No hay descripción disponible",
+                key_elements: session?.description?.key_topics || [],
+                audio_types: ["voice_over"],
+                text_types: ["complementary_text"],
+                number_of_shots: 0,
+                has_call_to_action: false,
+                total_duration: transcription ? Math.max(30, Math.ceil(transcription.length / 15)) : 30
+              };
+            } catch (fallbackErr) {
+              console.error("[Frontend] Error creating fallback data:", fallbackErr);
+              analysisData = null;
+            }
           }
         }
         
@@ -403,63 +476,14 @@ export default function ScriptGeneratorPage() {
           );
         }
         
-        // Display the analysis results directly
+        // Instead of showing all analysis details in a card, use the same layout as while analyzing
         return (
-          <Card>
-            <CardHeader>
-              <h2 className="text-xl font-bold">Análisis Completado</h2>
-            </CardHeader>
-            <CardBody>
-              <h3 className="font-semibold text-lg mb-2">Resumen del análisis:</h3>
-              
-              <p className="mb-4 text-gray-600">
-                {analysisData.description || 'No hay descripción disponible'}
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h4 className="font-semibold mb-1">Elementos clave:</h4>
-                  <ul className="list-disc pl-5">
-                    {Array.isArray(analysisData.key_elements) && analysisData.key_elements.length > 0 ? (
-                      analysisData.key_elements.map((element, idx) => (
-                        <li key={idx}>{element}</li>
-                      ))
-                    ) : (
-                      <li>No se encontraron elementos clave</li>
-                    )}
-                  </ul>
-                </div>
-                
-                <div>
-                  <h4 className="font-semibold mb-1">Características técnicas:</h4>
-                  <ul className="text-sm">
-                    <li><span className="font-medium">Duración:</span> {analysisData.total_duration || 0} segundos</li>
-                    <li>
-                      <span className="font-medium">Tipo de audio:</span> {Array.isArray(analysisData.audio_types) ? analysisData.audio_types.join(', ') : 'Desconocido'}
-                    </li>
-                    <li>
-                      <span className="font-medium">Tipo de texto:</span> {Array.isArray(analysisData.text_types) ? analysisData.text_types.join(', ') : 'Desconocido'}
-                    </li>
-                    <li>
-                      <span className="font-medium">Número de escenas:</span> {analysisData.number_of_shots || 0}
-                    </li>
-                    <li>
-                      <span className="font-medium">Llamado a la acción:</span> {analysisData.has_call_to_action ? 'Sí' : 'No'}
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div className="flex justify-between mt-6">
-                <Button color="secondary" onClick={() => setStage(STAGES.INPUT)}>
-                  Analizar otro video
-                </Button>
-                <Button color="primary" onClick={handleGenerateQuestions}>
-                  Continuar
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
+          <AnalysisQuestionsSection
+            isAnalyzing={false}
+            analysisData={analysisData}
+            onSubmitAnswers={handleSubmitAnswers}
+            onContinue={handleGenerateQuestions}
+          />
         );
       case STAGES.QUESTIONS:
         return (

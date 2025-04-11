@@ -63,3 +63,123 @@ export async function getSession() {
     throw error;
   }
 }
+
+/**
+ * Fetch user transcripts for the current session
+ * @param {string} categoryId - Optional category ID to filter by
+ * @param {string} subcategoryId - Optional subcategory ID to filter by
+ * @param {number} limit - Maximum number of transcripts to fetch (default: 10)
+ * @returns {Promise<Object>} The fetched transcripts and updated session
+ */
+export async function fetchUserTranscripts(categoryId = null, subcategoryId = null, limit = 10) {
+  try {
+    const { user } = useAuthStore.getState();
+    console.log("[ScriptGenerator] User from auth store:", user);
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+    
+    console.log("[ScriptGenerator] Calling API to fetch transcripts with params:", {
+      username: user.username,
+      categoryId,
+      subcategoryId,
+      limit
+    });
+    
+    const response = await apiClient.post('/api/script-generator/fetch-transcripts', {
+      username: user.username,
+      categoryId,
+      subcategoryId,
+      limit
+    });
+    
+    console.log("[ScriptGenerator] Fetch transcripts response:", response);
+    return response;
+  } catch (error) {
+    console.error('[ScriptGenerator] Error fetching transcripts:', error);
+    console.error('[ScriptGenerator] Error details:', error.response?.data || error);
+    throw error;
+  }
+}
+
+/**
+ * Submit answers to questions for script generation
+ * @param {Object} data - The answers data
+ * @param {Array} data.answers - Array of answer objects
+ * @returns {Promise<Object>} Response with updated session
+ */
+export async function submitAnswers(data) {
+  try {
+    console.log("[ScriptGenerator] submitAnswers called with:", data);
+    
+    const { user } = useAuthStore.getState();
+    console.log("[ScriptGenerator] User from auth store:", user);
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+    
+    console.log("[ScriptGenerator] Submitting answers for user:", user.username);
+    
+    const response = await apiClient.post('/api/script-generator/submit-answers', {
+      username: user.username,
+      answers: data.answers
+    });
+    
+    console.log("[ScriptGenerator] Submit answers response:", response);
+    return response;
+  } catch (error) {
+    console.error('[ScriptGenerator] Error submitting answers:', error);
+    console.error('[ScriptGenerator] Error details:', error.response?.data || error);
+    throw error;
+  }
+}
+
+/**
+ * Get category stats for transcript filtering
+ * @returns {Promise<Object>} Stats by category
+ */
+export async function getCategoryStats() {
+  // Placeholder implementation until real implementation is ready
+  console.log("[ScriptGenerator] getCategoryStats called (placeholder)");
+  return {
+    stats: {},
+    categories: []
+  };
+}
+
+/**
+ * Get previously generated scripts
+ * @returns {Promise<Array>} Array of script objects
+ */
+export async function getScripts() {
+  // Placeholder implementation until real implementation is ready
+  console.log("[ScriptGenerator] getScripts called (placeholder)");
+  return [];
+}
+
+/**
+ * Generate questions for script customization
+ * @returns {Promise<Object>} Generated questions
+ */
+export async function generateQuestions() {
+  // Placeholder implementation until real implementation is ready
+  console.log("[ScriptGenerator] generateQuestions called (placeholder)");
+  return {
+    questions: []
+  };
+}
+
+/**
+ * Generate a script based on the analysis and answers
+ * @returns {Promise<Object>} Generated script
+ */
+export async function generateScript() {
+  // Placeholder implementation until real implementation is ready
+  console.log("[ScriptGenerator] generateScript called (placeholder)");
+  return {
+    title: "Script generated",
+    content: "Placeholder script content"
+  };
+}
