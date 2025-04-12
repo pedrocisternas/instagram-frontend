@@ -17,6 +17,7 @@ import GenerationProgress from '@/components/script-generator/GenerationProgress
 import ScriptResult from '@/components/script-generator/ScriptResult';
 import ScriptHistory from '@/components/script-generator/ScriptHistory';
 import AnalysisQuestionsSection from '@/components/script-generator/AnalysisQuestionsSection';
+import AnalysisResultsView from '@/components/script-generator/AnalysisResultsView';
 import { 
   Spinner, 
   Card, 
@@ -25,7 +26,8 @@ import {
   Divider, 
   Tabs, 
   Tab,
-  Button
+  Button,
+  Progress
 } from "@heroui/react";
 
 // Workflow stages
@@ -33,10 +35,14 @@ const STAGES = {
   INPUT: 'input',
   ANALYZING: 'analyzing',
   ANALYSIS_COMPLETE: 'analysis_complete',
+  ANALYSIS_RESULTS: 'analysis_results',
   QUESTIONS: 'questions',
   GENERATING: 'generating',
   RESULT: 'result'
 };
+
+// Analysis duration in milliseconds (40 seconds)
+const ANALYSIS_DURATION = 40000;
 
 export default function ScriptGeneratorPage() {
   // Auth context
@@ -54,9 +60,6 @@ export default function ScriptGeneratorPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [title, setTitle] = useState('');
   
-  // Polling interval for checking session status
-  const [pollingActive, setPollingActive] = useState(false);
-  
   // Add new state for analysis progress
   const [analysisProgress, setAnalysisProgress] = useState(0);
   
@@ -67,96 +70,38 @@ export default function ScriptGeneratorPage() {
     }
   }, [isAuthenticated, user]);
   
-  // Poll for session updates - update to increment progress
+  // Replace polling effect with a simpler progress timer effect
   useEffect(() => {
-    let intervalId;
+    let progressInterval;
     
-    if (pollingActive) {
-      console.log("[Frontend] Starting polling for session updates");
+    // Start a timer for the progress bar only during analysis
+    if (stage === STAGES.ANALYZING) {
+      const analysisStartTime = Date.now();
+      console.log("[Frontend] Analysis started at:", analysisStartTime);
       
-      // Add progress simulation
-      let progressInterval;
-      if (stage === STAGES.ANALYZING) {
-        progressInterval = setInterval(() => {
-          setAnalysisProgress(prev => {
-            // Cap at 90% - the final 10% happens when analysis is complete
-            return prev < 90 ? prev + 5 : prev;
-          });
-        }, 3000); // Increase every 3 seconds
-      }
+      // Immediately set progress to 1% to show it's starting
+      setAnalysisProgress(1);
       
-      intervalId = setInterval(async () => {
-        try {
-          const responseData = await getSession();
-          console.log("[Frontend] Session poll received data:", responseData);
-          
-          // Handle case where no data is returned or session is missing
-          if (!responseData || !responseData.session) {
-            console.log("[Frontend] No valid session data in poll response");
-            return;
-          }
-          
-          const sessionData = responseData.session;
-          console.log("[Frontend] Session stage:", sessionData.stage);
-          console.log("[Frontend] Session data:", sessionData.data);
-          console.log("[Frontend] Session has gemini_analysis:", 
-            !!sessionData.gemini_analysis || !!(sessionData.data && sessionData.data.gemini_analysis));
-          
-          setSession(sessionData);
-          
-          // Update stage based on session status
-          if (sessionData.stage === 'analysis_complete') {
-            console.log("[Frontend] Setting stage to ANALYSIS_COMPLETE and stopping polling");
-            setAnalysisProgress(100); // Completed!
-            setStage(STAGES.ANALYSIS_COMPLETE);
-            setPollingActive(false);
-          } else if (sessionData.data?.gemini_analysis || sessionData.gemini_analysis) {
-            // We have analysis data even if stage isn't set correctly
-            console.log("[Frontend] Analysis data found even though stage isn't analysis_complete");
-            setAnalysisProgress(100); // Completed!
-            setSession(sessionData);
-            setStage(STAGES.ANALYSIS_COMPLETE);
-            setPollingActive(false);
-          } else if (sessionData.stage === 'questions_generated') {
-            console.log("[Frontend] Setting stage to QUESTIONS and stopping polling");
-            setQuestions(sessionData.questions || []);
-            setStage(STAGES.QUESTIONS);
-            setPollingActive(false);
-          } else if (sessionData.stage === 'completed') {
-            console.log("[Frontend] Setting stage to RESULT and stopping polling");
-            setScript(sessionData.script);
-            setStage(STAGES.RESULT);
-            setPollingActive(false);
-            loadScriptHistory(); // Refresh history
-          } else {
-            console.log("[Frontend] Current stage doesn't require state change:", sessionData.stage);
-          }
-        } catch (err) {
-          console.error('[Frontend] Error polling session:', err);
-          // Don't stop polling on errors
-        }
-      }, 3000); // Poll every 3 seconds
-      
-      return () => {
-        if (intervalId) {
-          console.log("[Frontend] Cleaning up polling interval");
-          clearInterval(intervalId);
-        }
-        if (progressInterval) {
+      // Progress timer for the 40-second simulation - update every second
+      progressInterval = setInterval(() => {
+        const elapsedTime = Date.now() - analysisStartTime;
+        const calculatedProgress = Math.min(Math.floor((elapsedTime / ANALYSIS_DURATION) * 100), 99);
+        
+        console.log(`[Frontend] Progress update: ${calculatedProgress}% (elapsed: ${elapsedTime}ms)`);
+        setAnalysisProgress(calculatedProgress);
+        
+        // If we've reached maximum simulated progress (99%), clear the interval 
+        // The final 100% will be set when we get the actual response
+        if (calculatedProgress >= 99) {
           clearInterval(progressInterval);
         }
-      };
-    } else {
-      console.log("[Frontend] Polling is not active");
+      }, 1000); // Update every second
     }
     
     return () => {
-      if (intervalId) {
-        console.log("[Frontend] Cleaning up polling interval");
-        clearInterval(intervalId);
-      }
+      if (progressInterval) clearInterval(progressInterval);
     };
-  }, [pollingActive, stage]);
+  }, [stage]);
   
   const loadInitialData = async () => {
     try {
@@ -226,11 +171,21 @@ export default function ScriptGeneratorPage() {
   const handleAnalyzeReference = async (data) => {
     console.log("[Frontend] Starting reference analysis with:", data);
     setError(null);
+    setAnalysisProgress(1); // Start at 1% to show something is happening immediately
     setStage(STAGES.ANALYZING);
     
     try {
+      console.log("[Frontend] Sending analysis request and waiting for complete results...");
       const response = await analyzeReference(data.url, data.categoryId, data.subcategoryId);
-      console.log("[Frontend] Analysis response received:", JSON.stringify(response));
+      console.log("[Frontend] Analysis response received:", response);
+      console.log("[Frontend] Response structure:", {
+        hasSession: !!response?.session,
+        sessionKeys: response?.session ? Object.keys(response.session) : [],
+        hasSummary: !!response?.session?.summary,
+        summaryType: typeof response?.session?.summary,
+        hasTranscription: !!response?.session?.transcription,
+        transcriptionLength: response?.session?.transcription?.length || 0
+      });
       
       // Check if a valid session was returned
       if (!response || !response.session) {
@@ -242,32 +197,13 @@ export default function ScriptGeneratorPage() {
       
       const sessionData = response.session;
       console.log("[Frontend] Session stage from response:", sessionData.stage);
-      console.log("[Frontend] Session data fields:", Object.keys(sessionData));
-      console.log("[Frontend] Session has gemini_analysis:", 
-                 !!sessionData.gemini_analysis || !!(sessionData.data && sessionData.data.gemini_analysis));
       
-      // Check if analysis is already complete to avoid unnecessary polling
-      if (sessionData.stage === 'analysis_complete') {
-        console.log("[Frontend] Analysis already complete, updating state without polling");
-        
-        // Check that we have access to the analysis data
-        if (!sessionData.gemini_analysis && !sessionData.data?.gemini_analysis) {
-          console.warn("[Frontend] WARNING: Analysis completed but no gemini_analysis found in session");
-          console.log("[Frontend] Session structure:", JSON.stringify(sessionData));
-        }
-        
-        setSession(sessionData);
-        setStage(STAGES.ANALYSIS_COMPLETE);
-      } else if (sessionData.data?.gemini_analysis || sessionData.gemini_analysis) {
-        // We have analysis data even if stage isn't set correctly
-        console.log("[Frontend] Analysis data found even though stage isn't analysis_complete");
-        setSession(sessionData);
-        setStage(STAGES.ANALYSIS_COMPLETE);
-      } else {
-        console.log("[Frontend] Starting polling for analysis completion");
-        setSession(sessionData);
-        setPollingActive(true); // Start polling for session updates
-      }
+      // Analysis is complete since we're waiting for it on the server side
+      setSession(sessionData);
+      setStage(STAGES.ANALYSIS_COMPLETE);
+      setAnalysisProgress(100); // Set to 100% since analysis is complete
+      
+      console.log("[Frontend] Analysis completed, ready for user to continue");
     } catch (err) {
       console.error('[Frontend] Error analyzing reference:', err);
       setError(err.message || 'Error analyzing video');
@@ -275,15 +211,6 @@ export default function ScriptGeneratorPage() {
     }
   };
   
-  const handleGenerateQuestions = async () => {
-    setError(null);
-    
-    // For now, just show an alert since we haven't fully implemented this feature
-    alert("Esta funcionalidad estará disponible próximamente. Por ahora, puedes intentar analizar otro video.");
-    setStage(STAGES.INPUT);
-  };
-  
-  // New function to handle question answers during analysis
   const handleSubmitAnswers = async (answers) => {
     if (!session) {
       setError("No hay una sesión activa");
@@ -303,16 +230,24 @@ export default function ScriptGeneratorPage() {
       
       console.log("[Frontend] Answers submitted successfully");
       
-      // If analysis is complete, show a confirmation message
-      if (stage === STAGES.ANALYZING) {
-        // Don't move to questions yet since we don't have that step implemented
-        // Just notify the user their answers were saved
-        setError(null); // Clear any errors
-        alert("Tus respuestas fueron guardadas. Continua esperando a que se complete el análisis.");
-      } else if (stage === STAGES.ANALYSIS_COMPLETE) {
-        // Just show a notification that answers were saved
+      // If analysis is complete, move to the analysis results view
+      if (stage === STAGES.ANALYSIS_COMPLETE) {
+        setStage(STAGES.ANALYSIS_RESULTS);
+      } else {
+        // If still analyzing, show a notification that answers were saved
         setError(null);
-        alert("Tus respuestas fueron guardadas correctamente. Puedes continuar al siguiente paso cuando estés listo.");
+        
+        // Use a friendlier notification instead of alert
+        const savedMessage = document.getElementById('answers-saved-message');
+        if (savedMessage) {
+          savedMessage.classList.remove('hidden');
+          setTimeout(() => {
+            savedMessage.classList.add('hidden');
+          }, 3000);
+        } else {
+          // Fallback to alert if element doesn't exist
+          alert("Tus respuestas fueron guardadas. Puedes seguir esperando a que se complete el análisis.");
+        }
       }
       
     } catch (err) {
@@ -321,21 +256,17 @@ export default function ScriptGeneratorPage() {
     }
   };
   
-  const handleRegenerate = async () => {
+  const handleViewAnalysisResults = () => {
+    setStage(STAGES.ANALYSIS_RESULTS);
+  };
+  
+  const handleGenerateScript = async () => {
     setError(null);
-    setStage(STAGES.GENERATING);
     
-    try {
-      // Generate a new script with the same answers
-      const result = await generateScript();
-      setScript(result);
-      setStage(STAGES.RESULT);
-      loadScriptHistory(); // Refresh history
-    } catch (err) {
-      console.error('Error regenerating script:', err);
-      setError(err.message || 'Error regenerating script');
-      setStage(STAGES.RESULT);
-    }
+    // In the future, this will generate the actual script
+    // For now, we show a message and return to the input stage
+    alert("La generación de scripts estará disponible próximamente.");
+    setStage(STAGES.INPUT);
   };
   
   const handleStartNew = () => {
@@ -368,121 +299,65 @@ export default function ScriptGeneratorPage() {
           />
         );
       case STAGES.ANALYZING:
+      case STAGES.ANALYSIS_COMPLETE:
+        // Simplified - just show questions regardless of analysis state
         return (
           <AnalysisQuestionsSection
-            isAnalyzing={true}
+            isAnalyzing={stage === STAGES.ANALYZING}
             analysisProgress={analysisProgress}
             onSubmitAnswers={handleSubmitAnswers}
+            onContinue={handleViewAnalysisResults}
           />
         );
-      case STAGES.ANALYSIS_COMPLETE:
-        // Get the raw analysis data from wherever it exists
-        let rawAnalysisData = 
-          session?.data?.data?.gemini_analysis ||
-          session?.data?.gemini_analysis || 
-          session?.gemini_analysis;
+      case STAGES.ANALYSIS_RESULTS:
+        // Initialize analysisData with default values
+        let analysisData = {
+          summary: "No hay resumen disponible",
+          transcript: "No hay transcripción disponible"
+        };
         
-        console.log("[Frontend] Session data structure:", JSON.stringify(session, null, 2));
-        console.log("[Frontend] Raw analysis data found:", !!rawAnalysisData);
-        console.log("[Frontend] Raw analysis data type:", typeof rawAnalysisData);
-        
-        // Initialize analysisData variable
-        let analysisData = null;
-        
-        // For safety, access the transcription directly if analysis structure can't be found
-        if (!rawAnalysisData && session?.transcript?.content) {
-          console.log("[Frontend] Using transcript directly from session");
-          // Create minimalist analysis data from transcript
-          const transcription = session.transcript.content;
-          analysisData = {
-            description: transcription,
-            key_elements: session?.description?.key_topics || [],
-            audio_types: ["voice_over"],
-            text_types: ["complementary_text"],
-            number_of_shots: 0,
-            has_call_to_action: false,
-            total_duration: transcription ? Math.max(30, Math.ceil(transcription.length / 15)) : 30
-          };
-        } else {
-          // Extract actual analysis from the nested structure
-          try {
-            // Extract from the nested structure
-            const analysis = rawAnalysisData?.analysis || {};
-            
-            console.log("[Frontend] Extracted analysis keys:", Object.keys(analysis));
-            console.log("[Frontend] TRANSCRIPTION exists:", !!analysis.TRANSCRIPTION);
-            console.log("[Frontend] KEY_TOPICS exists:", !!analysis.KEY_TOPICS);
-            
-            // Map fields to expected structure
-            analysisData = {
-              // Description from transcript in Gemini analysis
-              description: analysis.TRANSCRIPTION || session?.transcript?.content || "No hay descripción disponible",
-              
-              // Key elements from KEY_TOPICS
-              key_elements: analysis.KEY_TOPICS || session?.description?.key_topics || [],
-              
-              // Use available data or default values
-              audio_types: ["voice_over"], // Default assuming voice over
-              text_types: ["complementary_text"], // Default assuming text overlays
-              number_of_shots: Object.keys(analysis.DETAILED_DESCRIPTION || {}).length || 0,
-              has_call_to_action: analysis.TRANSCRIPTION?.toLowerCase().includes("don't") || false,
-              
-              // If available, estimate duration based on text length
-              total_duration: analysis.TRANSCRIPTION ? 
-                Math.max(30, Math.ceil(analysis.TRANSCRIPTION.length / 15)) : 30
-            };
-            
-            console.log("[Frontend] Structured analysis data:", analysisData);
-          } catch (err) {
-            console.error("[Frontend] Error processing analysis data:", err);
-            console.error("[Frontend] Error stack:", err.stack);
-            
-            // Fallback in case of error - create minimal data from session
-            try {
-              console.log("[Frontend] Using fallback data from session");
-              const transcription = session?.transcript?.content || "";
-              analysisData = {
-                description: transcription || "No hay descripción disponible",
-                key_elements: session?.description?.key_topics || [],
-                audio_types: ["voice_over"],
-                text_types: ["complementary_text"],
-                number_of_shots: 0,
-                has_call_to_action: false,
-                total_duration: transcription ? Math.max(30, Math.ceil(transcription.length / 15)) : 30
-              };
-            } catch (fallbackErr) {
-              console.error("[Frontend] Error creating fallback data:", fallbackErr);
-              analysisData = null;
-            }
+        // Access data using the simplified structure
+        if (session) {
+          console.log("[Frontend] Accessing session data for results:", session);
+          console.log("[Frontend] Session keys:", Object.keys(session));
+          console.log("[Frontend] Summary data structure:", {
+            summaryExists: !!session.summary,
+            summaryType: typeof session.summary,
+            summaryIsObject: typeof session.summary === 'object',
+            summaryContentExists: !!session.summary?.content,
+            flatSummaryIsString: typeof session.summary === 'string'
+          });
+          
+          // Get transcript from the transcript.content field OR from the flat transcription property
+          if (session.transcript?.content) {
+            console.log("[Frontend] Transcript found in session.transcript.content");
+            analysisData.transcript = session.transcript.content;
+          } else if (session.transcription) {
+            console.log("[Frontend] Transcript found in session.transcription");
+            analysisData.transcript = session.transcription;
           }
+          
+          // Get summary from the summary.content field OR from the flat summary property
+          if (session.summary?.content) {
+            console.log("[Frontend] Summary found in session.summary.content");
+            analysisData.summary = session.summary.content;
+          } else if (session.summary) {
+            console.log("[Frontend] Summary found in session.summary");
+            analysisData.summary = session.summary;
+          }
+          
+          console.log("[Frontend] Final analysisData:", {
+            summaryLength: analysisData.summary?.length || 0,
+            transcriptLength: analysisData.transcript?.length || 0
+          });
         }
         
-        // If no analysis data is found, show an error
-        if (!analysisData) {
-          return (
-            <Card>
-              <CardHeader>
-                <h2 className="text-xl font-bold">Error en el análisis</h2>
-              </CardHeader>
-              <CardBody>
-                <p className="text-red-600 mb-4">
-                  No se pudo obtener los resultados del análisis. Por favor intenta con otro video.
-                </p>
-                <Button color="primary" onClick={() => setStage(STAGES.INPUT)}>
-                  Intentar con otro video
-                </Button>
-              </CardBody>
-            </Card>
-          );
-        }
-        
-        // Instead of showing all analysis details in a card, use the same layout as while analyzing
+        // Show the analysis results view
         return (
-          <AnalysisQuestionsSection
-            isAnalyzing={false}
+          <AnalysisResultsView
             analysisData={analysisData}
-            onSubmitAnswers={handleSubmitAnswers}
-            onContinue={handleGenerateQuestions}
+            onGenerateScript={handleGenerateScript}
+            onStartOver={handleStartNew}
           />
         );
       case STAGES.QUESTIONS:
@@ -491,7 +366,6 @@ export default function ScriptGeneratorPage() {
             questions={questions}
             isLoading={false}
             onSubmit={handleSubmitAnswers}
-            onGenerateQuestions={handleGenerateQuestions}
           />
         );
       case STAGES.GENERATING:
@@ -504,7 +378,7 @@ export default function ScriptGeneratorPage() {
         return (
           <ScriptResult 
             script={script}
-            onRegenerate={handleRegenerate}
+            onRegenerate={handleGenerateScript}
             onStartNew={handleStartNew}
           />
         );
@@ -523,8 +397,35 @@ export default function ScriptGeneratorPage() {
   
   return (
     <AuthGuard>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto p-8 bg-gray-50">
         <h1 className="text-3xl font-bold mb-6">Generador de Scripts</h1>
+        
+        {/* Progress bar that shows during analysis and stays visible after completion */}
+        {(stage === STAGES.ANALYZING || stage === STAGES.ANALYSIS_COMPLETE || stage === STAGES.ANALYSIS_RESULTS) && (
+          <div className="max-w-3xl mx-auto mb-6">
+            <Progress 
+              value={analysisProgress} 
+              label=""
+              showValueLabel={false}
+              size="sm"
+              className="w-full"
+              aria-label="Análisis en progreso"
+            />
+          </div>
+        )}
+        
+        {/* Hidden notification for answer saving - will be shown via JS */}
+        <div 
+          id="answers-saved-message" 
+          className="hidden fixed top-4 right-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-md transition-opacity duration-500 z-50"
+        >
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+            </svg>
+            <span>Respuestas guardadas correctamente</span>
+          </div>
+        </div>
         
         {error && (
           <Card className="mb-6 bg-red-50">
@@ -534,19 +435,9 @@ export default function ScriptGeneratorPage() {
           </Card>
         )}
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            {renderStageContent()}
-          </div>
-          
-          <div className="lg:col-span-1">
-            <ScriptHistory 
-              scripts={scriptHistory}
-              isLoading={isLoadingHistory}
-              onSelect={handleSelectScript}
-              onRefresh={loadScriptHistory}
-            />
-          </div>
+        {/* Main content - single column, centered layout */}
+        <div className="max-w-3xl mx-auto">
+          {renderStageContent()}
         </div>
       </div>
     </AuthGuard>

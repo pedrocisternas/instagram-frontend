@@ -3,10 +3,11 @@ import apiClient from './clientApi';
 
 /**
  * Analyze a reference video and start the script generation process
+ * Waits for the complete analysis to finish before returning
  * @param {string} url - URL of the reference video
  * @param {string} categoryId - Optional category ID
  * @param {string} subcategoryId - Optional subcategory ID
- * @returns {Promise<Object>} Session data with analysis results
+ * @returns {Promise<Object>} Session data with completed analysis results
  */
 export async function analyzeReference(url, categoryId = null, subcategoryId = null) {
   if (!url) throw new Error('URL is required');
@@ -24,13 +25,26 @@ export async function analyzeReference(url, categoryId = null, subcategoryId = n
     }
 
     console.log("[ScriptGenerator] Calling API endpoint: /api/script-generator/analyze-reference");
+    console.log("[ScriptGenerator] This request will wait for analysis to complete before returning");
+    
     const response = await apiClient.post('/api/script-generator/analyze-reference', {
       url,
       categoryId,
       subcategoryId,
       username: user.username
     });
-    console.log("[ScriptGenerator] Analysis response received:", response);
+    
+    console.log("[ScriptGenerator] Analysis completed, response received:", response);
+    
+    // Log detailed response structure
+    console.log("[ScriptGenerator] Response session keys:", Object.keys(response.session));
+    console.log("[ScriptGenerator] Summary data:", {
+      exists: !!response.session.summary,
+      type: typeof response.session.summary,
+      length: typeof response.session.summary === 'string' ? response.session.summary.length : 'N/A',
+      preview: typeof response.session.summary === 'string' ? response.session.summary.substring(0, 50) + '...' : 'Not a string'
+    });
+    
     return response;
   } catch (error) {
     console.error('[ScriptGenerator] Error analyzing reference video:', error);
@@ -56,6 +70,18 @@ export async function getSession() {
     console.log("[ScriptGenerator] Calling API endpoint:", `/api/script-generator/session?username=${user.username}`);
     const response = await apiClient.get(`/api/script-generator/session?username=${user.username}`);
     console.log("[ScriptGenerator] API response received:", response);
+    
+    // Log detailed response session structure
+    if (response && response.session) {
+      console.log("[ScriptGenerator] Session keys:", Object.keys(response.session));
+      console.log("[ScriptGenerator] Summary data:", {
+        exists: !!response.session.summary,
+        type: typeof response.session.summary,
+        length: typeof response.session.summary === 'string' ? response.session.summary.length : 'N/A',
+        preview: typeof response.session.summary === 'string' ? response.session.summary.substring(0, 50) + '...' : 'Not a string'
+      });
+    }
+    
     return response;
   } catch (error) {
     console.error('[ScriptGenerator] Error fetching session:', error);
