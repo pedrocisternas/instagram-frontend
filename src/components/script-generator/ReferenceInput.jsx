@@ -39,7 +39,16 @@ export default function ReferenceInput({
       return false;
     }
     
-    // Basic URL validation - can be expanded as needed
+    // Enhanced URL validation with specific checks for Instagram
+    if (value.includes('instagram.com')) {
+      // Check if URL contains /reel/ or /p/ in the path for Instagram
+      if (!value.includes('/reel/') && !value.includes('/p/')) {
+        setUrlError('Para Instagram, debes ingresar la URL de un reel o post específico, no un perfil. Ejemplo: instagram.com/reel/XYZ123');
+        return false;
+      }
+    }
+    
+    // Base URL validation - can be expanded as needed
     const urlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be|instagram\.com|tiktok\.com)\/[^\s]+$/;
     if (!urlPattern.test(value)) {
       setUrlError('URL inválida. Debe ser de YouTube, Instagram o TikTok');
@@ -93,8 +102,10 @@ export default function ReferenceInput({
               isRequired
             />
             <p className="text-xs text-gray-500 mt-1">
-              Introduce la URL de un video de YouTube, Instagram o TikTok que 
-              quieras usar como referencia para generar el script.
+              Introduce la URL de un video específico:
+              <br />• Instagram: URL de un reel o post (ej: instagram.com/reel/xyz123)
+              <br />• YouTube: URL de un video completo (no shorts o canales)
+              <br />• TikTok: URL de un video específico
             </p>
           </div>
           

@@ -64,12 +64,19 @@ export default function ScriptResult({
     }
   };
   
-  // Format script sections
-  const sections = script.sections || {
-    introduction: script.content.substring(0, 200),
-    main_content: script.content.substring(200),
-    conclusion: '',
-    notes: ''
+  // Format script sections with better handling for our new script format
+  const scriptContent = script.content || '';
+  
+  // Simple approach to identify sections:
+  // Try to separate introduction (first paragraph), middle content, and conclusion (last paragraph)
+  const paragraphs = scriptContent.split('\n\n').filter(p => p.trim());
+  
+  const sections = {
+    introduction: paragraphs.length > 0 ? paragraphs[0] : '',
+    main_content: paragraphs.length > 2 
+      ? paragraphs.slice(1, -1).join('\n\n') 
+      : (paragraphs.length > 1 ? paragraphs[1] : ''),
+    conclusion: paragraphs.length > 2 ? paragraphs[paragraphs.length - 1] : ''
   };
 
   return (

@@ -198,14 +198,29 @@ export async function generateQuestions() {
 }
 
 /**
- * Generate a script based on the analysis and answers
- * @returns {Promise<Object>} Generated script
+ * Generate a script based on the current session
+ * @returns {Promise<Object>} Generated script data
  */
 export async function generateScript() {
-  // Placeholder implementation until real implementation is ready
-  console.log("[ScriptGenerator] generateScript called (placeholder)");
-  return {
-    title: "Script generated",
-    content: "Placeholder script content"
-  };
+  try {
+    const { user } = useAuthStore.getState();
+    console.log("[ScriptGenerator] Generating script for user:", user);
+    
+    if (!user?.username) {
+      throw new Error('No authenticated user found');
+    }
+    
+    console.log("[ScriptGenerator] Calling API endpoint: /api/script-generator/generate-script");
+    
+    const response = await apiClient.post('/api/script-generator/generate-script', {
+      username: user.username
+    });
+    
+    console.log("[ScriptGenerator] Script generation response:", response);
+    return response;
+  } catch (error) {
+    console.error('[ScriptGenerator] Error generating script:', error);
+    console.error('[ScriptGenerator] Error details:', error.response?.data || error);
+    throw error;
+  }
 }

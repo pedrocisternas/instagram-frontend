@@ -18,6 +18,7 @@ import ScriptResult from '@/components/script-generator/ScriptResult';
 import ScriptHistory from '@/components/script-generator/ScriptHistory';
 import AnalysisQuestionsSection from '@/components/script-generator/AnalysisQuestionsSection';
 import AnalysisResultsView from '@/components/script-generator/AnalysisResultsView';
+import ScriptGenerationProgress from '@/components/script-generator/ScriptGenerationProgress';
 import { 
   Spinner, 
   Card, 
@@ -36,9 +37,8 @@ const STAGES = {
   ANALYZING: 'analyzing',
   ANALYSIS_COMPLETE: 'analysis_complete',
   ANALYSIS_RESULTS: 'analysis_results',
-  QUESTIONS: 'questions',
-  GENERATING: 'generating',
-  RESULT: 'result'
+  GENERATING_SCRIPT: 'generating_script',
+  SCRIPT_RESULT: 'result'
 };
 
 // Analysis duration in milliseconds (40 seconds)
@@ -131,11 +131,11 @@ export default function ScriptGeneratorPage() {
       } else if (sessionData.session.stage === 'questions_generated') {
         console.log("[Frontend] Setting initial stage to QUESTIONS");
         setQuestions(sessionData.session.questions || []);
-        setStage(STAGES.QUESTIONS);
+        setStage(STAGES.ANALYSIS_RESULTS);
       } else if (sessionData.session.stage === 'completed') {
         console.log("[Frontend] Setting initial stage to RESULT");
         setScript(sessionData.session.script);
-        setStage(STAGES.RESULT);
+        setStage(STAGES.SCRIPT_RESULT);
       } else {
         console.log("[Frontend] Unknown session stage:", sessionData.session.stage);
       }
@@ -206,7 +206,22 @@ export default function ScriptGeneratorPage() {
       console.log("[Frontend] Analysis completed, ready for user to continue");
     } catch (err) {
       console.error('[Frontend] Error analyzing reference:', err);
-      setError(err.message || 'Error analyzing video');
+      
+      // Provide more user-friendly error messages based on error types
+      let errorMessage = 'Error al analizar el video';
+      
+      // Check for specific error messages related to URL issues
+      if (err.message) {
+        if (err.message.includes('VIDEO_TOO_LARGE')) {
+          errorMessage = 'El video es demasiado grande para ser analizado. El límite es de aproximadamente 30MB.';
+        } else if (err.message.includes('Request contains an invalid argument')) {
+          errorMessage = 'No se pudo procesar el contenido del enlace. Asegúrate de ingresar la URL de un video específico, no un perfil o página.';
+        } else if (err.message.includes('not a valid URL')) {
+          errorMessage = 'La URL proporcionada no es válida. Por favor, verifica e intenta nuevamente.';
+        }
+      }
+      
+      setError(errorMessage);
       setStage(STAGES.INPUT);
     }
   };
@@ -262,11 +277,26 @@ export default function ScriptGeneratorPage() {
   
   const handleGenerateScript = async () => {
     setError(null);
+    setStage(STAGES.GENERATING_SCRIPT);
     
-    // In the future, this will generate the actual script
-    // For now, we show a message and return to the input stage
-    alert("La generación de scripts estará disponible próximamente.");
-    setStage(STAGES.INPUT);
+    try {
+      console.log("[Frontend] Starting script generation...");
+      const response = await generateScript();
+      console.log("[Frontend] Script generation response:", response);
+      
+      if (!response || !response.script) {
+        console.error("[Frontend] Invalid response from script generation:", response);
+        throw new Error('No se pudo obtener el guión generado');
+      }
+      
+      setScript(response.script);
+      setStage(STAGES.SCRIPT_RESULT);
+      console.log("[Frontend] Script generation completed, showing results");
+    } catch (err) {
+      console.error('[Frontend] Error generating script:', err);
+      setError(err.message || 'Error al generar el guión. Por favor, intenta nuevamente.');
+      setStage(STAGES.ANALYSIS_RESULTS); // Go back to previous stage
+    }
   };
   
   const handleStartNew = () => {
@@ -282,7 +312,7 @@ export default function ScriptGeneratorPage() {
     const selectedScript = scriptHistory.find(s => s.id === scriptId);
     if (selectedScript) {
       setScript(selectedScript);
-      setStage(STAGES.RESULT);
+      setStage(STAGES.SCRIPT_RESULT);
     }
   };
   
@@ -360,21 +390,11 @@ export default function ScriptGeneratorPage() {
             onStartOver={handleStartNew}
           />
         );
-      case STAGES.QUESTIONS:
+      case STAGES.GENERATING_SCRIPT:
         return (
-          <QuestionForm 
-            questions={questions}
-            isLoading={false}
-            onSubmit={handleSubmitAnswers}
-          />
+          <ScriptGenerationProgress />
         );
-      case STAGES.GENERATING:
-        return (
-          <GenerationProgress 
-            title={title}
-          />
-        );
-      case STAGES.RESULT:
+      case STAGES.SCRIPT_RESULT:
         return (
           <ScriptResult 
             script={script}
@@ -428,9 +448,21 @@ export default function ScriptGeneratorPage() {
         </div>
         
         {error && (
-          <Card className="mb-6 bg-red-50">
-            <CardBody>
-              <p className="text-red-600">{error}</p>
+          <Card className="mb-6 bg-red-50 border border-red-200">
+            <CardBody className="flex items-start">
+              <div className="mr-3 mt-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-red-700 font-medium">{error}</p>
+                {error.includes('URL') && (
+                  <p className="text-sm text-red-600 mt-1">
+                    Asegúrate de ingresar un enlace directo a un video específico, no a un perfil o canal.
+                  </p>
+                )}
+              </div>
             </CardBody>
           </Card>
         )}
