@@ -14,7 +14,7 @@ import {
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
 import StatsSummaryPanel from '@/components/posts/StatsSummaryPanel';
-import { fetchDashboardData } from '@/services/api/posts';
+import { fetchDashboardTable, fetchStatsSummary } from '@/services/api/posts';
 import { 
   fetchCategories, 
   createCategory, 
@@ -53,30 +53,49 @@ export default function Home() {
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [selectedSubcategories, setSelectedSubcategories] = useState(new Set([]));
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [postsPerPage, setPostsPerPage] = useState(APP_CONFIG.POSTS_PER_PAGE);
   const tableRef = useRef(null);
   const mainContainerRef = useRef(null);
   const [selectedDays, setSelectedDays] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  // Nuevos estados para el panel de resumen
+  const [summaryPosts, setSummaryPosts] = useState([]);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
 
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
 
-  const fetchAllData = async () => {
-    setIsInitialLoading(true);
+  const fetchTableData = async (pageToFetch = page, customFilters = {}) => {
     try {
       if (!user?.username) {
-        console.log('No username available, skipping data fetch');
+        console.log('(fetchTablePosts) No username available, skipping data fetch');
         setIsInitialLoading(false);
         return;
       }
+
+      setIsLoading(true);
+
+      const filters = {
+        types: selectedTypes,
+        categories: selectedCategories,
+        subcategories: selectedSubcategories,
+        days: selectedDays,
+        page: pageToFetch,
+        sortField: sortField,
+        sortDirection: sortDirection,
+        ...customFilters 
+      };
       
-      console.log('Fetching data for username:', user.username);
-      const data = await fetchDashboardData(user.username);
+      const data = await fetchDashboardTable(user.username, filters);
       setAllPosts(data.posts);
       setCategories(data.categories);
       setSubcategories(data.subcategories);
+      
+      if (data.pagination) {
+        setPage(data.pagination.page);
+        setTotalPages(data.pagination.totalPages);
+      }
 
-      // Actualizar última sincronización
       if (data.posts.length > 0) {
         const latestUpdate = data.posts.reduce((latest, post) => {
           return post.metrics_updated_at > latest ? post.metrics_updated_at : latest;
@@ -84,139 +103,64 @@ export default function Home() {
         setLastUpdate(latestUpdate);
       }
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      console.error('(fetchTablePosts) Error loading dashboard data:', error);
       setError(error.message);
     } finally {
       setIsInitialLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSummaryData = async (customFilters = {}) => {
+    try {
+      if (!user?.username) {
+        console.log('(fetchSummaryData) No username available, skipping data fetch');
+        return;
+      }
+
+      setIsSummaryLoading(true);
+
+      const filters = {
+        types: selectedTypes,
+        categories: selectedCategories,
+        subcategories: selectedSubcategories,
+        days: selectedDays,
+        ...customFilters 
+      };
+      
+      const data = await fetchStatsSummary(user.username, filters);
+      setSummaryPosts(data.posts);
+    } catch (error) {
+      console.error('(fetchSummaryData) Error loading summary data:', error);
+    } finally {
+      setIsSummaryLoading(false);
     }
   };
 
   const syncAllPages = async () => {
     try {
+      setIsLoading(true); // Activar estado de carga durante la sincronización
       await syncMetrics();
-      await fetchAllData();
+      await fetchTableData();
+      await fetchSummaryData();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsLoading(false); // Asegurar que se desactive el estado de carga
     }
   };
-
-  // Modificar la función de filtrado para incluir categorías y subcategorías
-  const filteredPosts = useMemo(() => {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - selectedDays);
-
-    return allPosts.filter(post => {
-      const typeMatch = selectedTypes.size === 0 || 
-        selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type);
-      
-      const categoryMatch = selectedCategories.size === 0 || 
-        (post.category_id && selectedCategories.has(post.category_id));
-      
-      const subcategoryMatch = selectedSubcategories.size === 0 ||
-        (post.subcategory_id && selectedSubcategories.has(post.subcategory_id));
-
-      const dateMatch = selectedDays === 0 || new Date(post.published_at) >= cutoffDate;
-      
-      return typeMatch && categoryMatch && subcategoryMatch && dateMatch;
-    });
-  }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories, selectedDays]);
-
-  // Calculate posts per page based on window height
-  const calculatePostsPerPage = () => {
-    if (typeof window === 'undefined' || !tableRef.current || !mainContainerRef.current) return;
-    
-    // Get available height (viewport height minus other elements)
-    const viewportHeight = window.innerHeight;
-    
-    // Calculate space taken by other elements (title, filters, pagination, etc.)
-    const tableHeaderHeight = 46; // Even smaller header height
-    const paginationHeight = 44; // Even smaller pagination controls height
-    const statsHeight = 100; // Even smaller stats panel height
-    const titleAndFiltersHeight = 50; // Even smaller title and filters height
-    const marginAndPadding = 20; // Minimal margins and padding
-    
-    const otherElementsHeight = tableHeaderHeight + paginationHeight + statsHeight + 
-                               titleAndFiltersHeight + marginAndPadding;
-    
-    // Calculate available height for rows
-    const availableHeight = viewportHeight - otherElementsHeight;
-    
-    // Use an even smaller row height
-    const rowHeight = 40; // Very compact row height
-    
-    // Calculate rows plus add extra to use more space
-    const calculatedRows = Math.floor(availableHeight / rowHeight);
-    const newPostsPerPage = Math.max(3, calculatedRows);
-    
-    // More detailed logging
-    console.log({
-      viewportHeight,
-      otherElementsHeight,
-      availableHeight,
-      rowHeight,
-      calculatedRows,
-      newPostsPerPage
-    });
-    
-    setPostsPerPage(newPostsPerPage);
-  };
-  
-  // Add resize listener to recalculate on window resize
-  useEffect(() => {
-    calculatePostsPerPage();
-    
-    const handleResize = () => {
-      calculatePostsPerPage();
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
-  // Recalculate when the component is fully rendered
-  useEffect(() => {
-    // Small delay to ensure DOM is fully rendered
-    const timer = setTimeout(() => {
-      calculatePostsPerPage();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [allPosts.length, filteredPosts.length]);
-
-  // Usar filteredPosts para la paginación
-  const sortedAndPaginatedPosts = useMemo(() => {
-    // Ordenar los posts filtrados
-    const sorted = [...filteredPosts].sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      if (sortField === 'published_at') {
-        const aDate = new Date(aValue);
-        const bDate = new Date(bValue);
-        return sortDirection === 'desc' ? 
-          bDate.getTime() - aDate.getTime() : 
-          aDate.getTime() - bDate.getTime();
-      }
-
-      const aNum = aValue ?? 0;
-      const bNum = bValue ?? 0;
-      return sortDirection === 'desc' ? bNum - aNum : aNum - bNum;
-    });
-
-    // Paginar usando postsPerPage dinámico
-    const start = (page - 1) * postsPerPage;
-    const end = start + postsPerPage;
-    return sorted.slice(start, end);
-  }, [filteredPosts, page, sortField, sortDirection, postsPerPage]);
 
   // Manejar ordenamiento
   const handleSort = (field) => {
-    if (sortField === field) {
-      setSortDirection(current => current === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
+    const newDirection = sortField === field 
+      ? (sortDirection === 'asc' ? 'desc' : 'asc')
+      : 'desc';
+    
+    setSortField(field);
+    setSortDirection(newDirection);
+    
+    // Cargar datos con el nuevo ordenamiento
+    fetchTableData(1, { sortField: field, sortDirection: newDirection, page: 1 });
   };
 
   // Función para cargar categorías
@@ -272,15 +216,18 @@ export default function Home() {
 
   // Actualizar la URL cuando cambia la página
   const handlePageChange = (newPage) => {
-    setPage(newPage);
+    // Actualizamos la URL
     const params = new URLSearchParams(window.location.search);
     params.set('page', newPage.toString());
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    
+    // Cargar datos para la nueva página
+    fetchTableData(newPage);
   };
 
   // Efecto para manejar la inicialización en el cliente
   useEffect(() => {
-    // Marcar que estamos en el cliente
+
     setIsClientSide(true);
     
     // Inicializar la página desde la URL solo en el cliente
@@ -291,11 +238,26 @@ export default function Home() {
     }
   }, []);
 
+  useEffect(() => {
+    if (isClientSide && !isInitialLoading && user?.username) {
+      // Al cambiar los filtros, volvemos siempre a la página 1
+      // También actualizamos la URL para reflejar que estamos en la página 1
+      const params = new URLSearchParams(window.location.search);
+      params.set('page', '1');
+      window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+      
+      // Cargar los datos de la tabla y del resumen por separado
+      fetchTableData(1);
+      fetchSummaryData();
+    }
+  }, [selectedTypes, selectedCategories, selectedSubcategories, selectedDays, isClientSide, isInitialLoading, user?.username]);
+
   // Modificar el efecto de carga inicial
   useEffect(() => {
     // Solo ejecutar cuando estamos en el cliente y tenemos el username
     if (isClientSide && user?.username) {
-      fetchAllData();
+      fetchTableData();
+      fetchSummaryData();
     }
   }, [isClientSide, user?.username]);
 
@@ -339,14 +301,14 @@ export default function Home() {
   const handleGenerateInsights = async () => {
     try {
       console.log('Iniciando generación de insights...');
-      console.log('Total posts filtrados:', filteredPosts.length);
+      console.log('Total posts filtrados:', allPosts.length);
       
       // Agregamos validación de cantidad mínima
-      if (filteredPosts.length < 3) {
+      if (allPosts.length < 3) {
         throw new Error('Se necesitan al menos 3 posts para generar insights');
       }
       
-      const insights = await generateInsights(filteredPosts);
+      const insights = await generateInsights(allPosts);
       console.log('Insights recibidos:', insights);
       
       // Aquí podríamos mostrar los insights en un modal o en una nueva vista
@@ -385,45 +347,50 @@ export default function Home() {
     }
   }, [authState, router]);
 
-  // Add a memoized value for total pages that updates when postsPerPage changes
-  const totalPages = useMemo(() => {
-    return Math.ceil(filteredPosts.length / postsPerPage);
-  }, [filteredPosts.length, postsPerPage]);
+  // Manejadores de filtros actualizados para recargar datos
+  const handleTypeChange = (newTypes) => {
+    setSelectedTypes(newTypes);
+    // No necesitamos llamar a fetchTableData aquí porque
+    // ya se hace en el useEffect cuando cambia selectedTypes
+  };
 
-  // When postsPerPage changes, we need to adjust the current page if needed
-  useEffect(() => {
-    // If the current page is now beyond the total pages, adjust it
-    if (page > totalPages && totalPages > 0) {
-      handlePageChange(totalPages);
+  const handleCategoryChange = (newCategories) => {
+    setSelectedCategories(newCategories);
+    // Limpiar subcategorías si no hay categorías seleccionadas
+    if (newCategories.size === 0) {
+      setSelectedSubcategories(new Set([]));
     }
-  }, [totalPages, page]);
+  };
 
-  // Modificar la función sanitizeCaption para evitar errores del DOM en SSR
-  const sanitizeCaption = (caption) => {
-    if (!caption) return '';
+  const handleSubcategoryChange = (newSubcategories) => {
+    setSelectedSubcategories(newSubcategories);
+  };
+
+  const handleDaysChange = (newDays) => {
+    setSelectedDays(newDays);
+  };
+
+  const handleResetFilters = () => {
+    setSelectedTypes(new Set([]));
+    setSelectedCategories(new Set([]));
+    setSelectedSubcategories(new Set([]));
+    setSelectedDays(0);
+    setSortField('published_at');
+    setSortDirection('desc');
+    // Forzar recarga con filtros limpios
+    const cleanFilters = {
+      types: new Set([]),
+      categories: new Set([]),
+      subcategories: new Set([]),
+      days: 0,
+      sortField: 'published_at',
+      sortDirection: 'desc',
+      page: 1
+    };
     
-    // Verificar que estamos en el cliente antes de usar APIs del DOM
-    if (typeof document === 'undefined') {
-      // Si estamos en el servidor, solo devolvemos el caption limpio básico
-      return caption.replace(/<[^>]*>/g, '');
-    }
-    
-    // Código existente del cliente
-    const div = document.createElement('div');
-    div.textContent = caption;
-    let sanitized = div.innerHTML;
-    
-    // Additional handling for URLs to prevent tooltip parsing issues
-    sanitized = sanitized.replace(/(https?:\/\/[^\s]+)/g, (url) => {
-      return url
-        .replace(/&/g, '&amp;')
-        .replace(/\?/g, '&#63;')
-        .replace(/=/g, '&#61;')
-        .replace(/%/g, '&#37;')
-        .replace(/\//g, '&#47;');
-    });
-    
-    return sanitized;
+    // Recargar tanto la tabla como el resumen
+    fetchTableData(1, cleanFilters);
+    fetchSummaryData(cleanFilters);
   };
 
   // Modificar la lógica de loading
@@ -461,19 +428,15 @@ export default function Home() {
             sortField={sortField}
             sortDirection={sortDirection}
             selectedDays={selectedDays}
-            onTypeChange={setSelectedTypes}
-            onCategoryChange={setSelectedCategories}
-            onSubcategoryChange={setSelectedSubcategories}
-            onDaysChange={setSelectedDays}
-            onSortReset={() => {
-              setSortField('published_at');
-              setSortDirection('desc');
-            }}
+            onTypeChange={handleTypeChange}
+            onCategoryChange={handleCategoryChange}
+            onSubcategoryChange={handleSubcategoryChange}
+            onDaysChange={handleDaysChange}
+            onResetFilters={handleResetFilters}
           />
         </div>
 
-        {/* Add the stats panel here, using filteredPosts */}
-        <StatsSummaryPanel posts={filteredPosts} />
+        <StatsSummaryPanel posts={summaryPosts} isLoading={isSummaryLoading} />
 
         <Table removeWrapper aria-label="Instagram posts table" ref={tableRef}>
           <TableHeader>
@@ -509,8 +472,9 @@ export default function Home() {
             ))}
           </TableHeader>
           <TableBody>
-            {isSyncing ? (
-              Array(APP_CONFIG.POSTS_PER_PAGE).fill(null).map((_, index) => (
+            {(isSyncing || isLoading) ? (
+
+              Array.from({ length: 12 }).map((_, index) => (
                 <TableRow key={index}>
                   {Array(11).fill(null).map((_, cellIndex) => (
                     <TableCell key={cellIndex}>
@@ -519,8 +483,35 @@ export default function Home() {
                   ))}
                 </TableRow>
               ))
+            ) : allPosts.length === 0 ? (    
+              <TableRow>
+                <TableCell>
+                  <div className="flex flex-col items-center justify-center text-gray-500 py-10">
+                    <p className="text-lg font-medium">No se encontraron publicaciones</p>
+                    <p className="text-sm mt-1">Prueba con otros filtros o limpia los filtros actuales</p>
+                    <Button 
+                      color="primary" 
+                      variant="flat"
+                      className="mt-4"
+                      onPress={handleResetFilters}
+                    >
+                      Limpiar filtros
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+                <TableCell />
+              </TableRow>
             ) : (
-              sortedAndPaginatedPosts.map(post => (
+              allPosts.map(post => (
                 <TableRow 
                   key={post.id} 
                   className="cursor-pointer hover:bg-gray-100 transition-colors"
@@ -537,7 +528,7 @@ export default function Home() {
                                 whiteSpace: 'pre-wrap', 
                                 wordBreak: 'break-word' 
                               }}>
-                                {sanitizeCaption(post.caption)}
+                                {post.caption}
                               </div>
                             }
                             placement="top"
@@ -601,27 +592,32 @@ export default function Home() {
           </TableBody>
         </Table>
 
-        <div className="mt-4 flex items-center justify-between">
-          <Button
-            color="primary"
-            onPress={() => handlePageChange(Math.max(1, page - 1))}
-            isDisabled={page === 1}
-          >
-            Anterior
-          </Button>
-          
-          <span className="text-sm text-gray-700">
-            Página {page} de {totalPages}
-          </span>
-          
-          <Button
-            color="primary"
-            onPress={() => handlePageChange(page + 1)}
-            isDisabled={page >= totalPages}
-          >
-            Siguiente
-          </Button>
-        </div>
+        {/* Controles de paginación, solo visibles si hay posts */}
+        {allPosts.length > 0 && !isLoading && (
+          <div className="mt-4 flex items-center justify-between">
+            <Button
+              color="primary"
+              onPress={() => handlePageChange(Math.max(1, page - 1))}
+              isDisabled={page === 1 || isLoading}
+              isLoading={isLoading}
+            >
+              Anterior
+            </Button>
+            
+            <span className="text-sm text-gray-700">
+              {isLoading ? "Cargando..." : `Página ${page} de ${totalPages}`}
+            </span>
+            
+            <Button
+              color="primary"
+              onPress={() => handlePageChange(page + 1)}
+              isDisabled={page >= totalPages || isLoading}
+              isLoading={isLoading}
+            >
+              Siguiente
+            </Button>
+          </div>
+        )}
       </main>
     </AuthGuard>
   );

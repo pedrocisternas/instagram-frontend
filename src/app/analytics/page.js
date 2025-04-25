@@ -30,6 +30,7 @@ export default function AnalyticsDashboard() {
   const [subcategories, setSubcategories] = useState([]);
   const [sortField, setSortField] = useState('published_at');
   const [sortDirection, setSortDirection] = useState('desc');
+  const [selectedDays, setSelectedDays] = useState(0);
 
   // Store sync
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
@@ -113,21 +114,47 @@ export default function AnalyticsDashboard() {
     }
   };
 
-  // Filtrado de posts
+  // Agreguemos la función para manejar cambios en el filtro de días
+  const handleDaysChange = (newDays) => {
+    setSelectedDays(newDays);
+  };
+
+  // Función para resetear todos los filtros
+  const handleResetFilters = () => {
+    setSelectedTypes(new Set([]));
+    setSelectedCategories(new Set([]));
+    setSelectedSubcategories(new Set([]));
+    setSelectedDays(0);
+    setSortField('published_at');
+    setSortDirection('desc');
+  };
+
+  // Actualizamos el useMemo de filteredPosts para incluir el filtro de días
   const filteredPosts = useMemo(() => {
     return allPosts.filter(post => {
+      // Filtro de tipo de medio
       const typeMatch = selectedTypes.size === 0 || 
         selectedTypes.has(post.media_type === 'REEL' ? 'VIDEO' : post.media_type);
       
+      // Filtro de categoría
       const categoryMatch = selectedCategories.size === 0 || 
         (post.category_id && selectedCategories.has(post.category_id));
       
+      // Filtro de subcategoría
       const subcategoryMatch = selectedSubcategories.size === 0 ||
         (post.subcategory_id && selectedSubcategories.has(post.subcategory_id));
       
-      return typeMatch && categoryMatch && subcategoryMatch;
+      // Filtro de rango de fechas
+      let dateMatch = true;
+      if (selectedDays > 0) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - selectedDays);
+        dateMatch = new Date(post.published_at) >= cutoffDate;
+      }
+      
+      return typeMatch && categoryMatch && subcategoryMatch && dateMatch;
     });
-  }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories]);
+  }, [allPosts, selectedTypes, selectedCategories, selectedSubcategories, selectedDays]);
 
   // Datos del gráfico filtrados y ordenados
   const chartData = useMemo(() => {
@@ -417,13 +444,12 @@ export default function AnalyticsDashboard() {
             subcategories={subcategories}
             sortField={sortField}
             sortDirection={sortDirection}
+            selectedDays={selectedDays}
             onTypeChange={setSelectedTypes}
             onCategoryChange={setSelectedCategories}
             onSubcategoryChange={setSelectedSubcategories}
-            onSortReset={() => {
-              setSortField('published_at');
-              setSortDirection('desc');
-            }}
+            onDaysChange={handleDaysChange}
+            onResetFilters={handleResetFilters}
           />
         </div>
 
