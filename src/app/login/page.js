@@ -13,7 +13,7 @@ export default function LoginPage() {
     useEffect(() => {
         // Redirigir si ya está autenticado
         if (authState === 'authenticated') {
-            router.push('/home');
+            router.push('/dashboard');
         }
     }, [authState, router]);
 
