@@ -17,7 +17,7 @@ export default function PostFilters({
   onCategoryChange,
   onSubcategoryChange,
   onDaysChange,
-  onResetFilters
+  onSortReset
 }) {
   const hasFilters = selectedTypes.size > 0 || 
     selectedCategories.size > 0 || 
@@ -32,7 +32,13 @@ export default function PostFilters({
         <Button
           color="primary"
           variant="flat"
-          onPress={onResetFilters}
+          onPress={() => {
+            onTypeChange(new Set([]));
+            onCategoryChange(new Set([]));
+            onSubcategoryChange(new Set([]));
+            onDaysChange(0);
+            onSortReset();
+          }}
         >
           Limpiar Filtros
         </Button>
