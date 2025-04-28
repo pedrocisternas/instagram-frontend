@@ -46,11 +46,11 @@ export default function DashboardSkeleton() {
           <TableColumn width="8%">Comments</TableColumn>
         </TableHeader>
         <TableBody>
-          {Array(10).fill(null).map((_, index) => (
+          {Array(12).fill(null).map((_, index) => (
             <TableRow key={index}>
               {Array(11).fill(null).map((_, cellIndex) => (
                 <TableCell key={cellIndex}>
-                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-5 w-full" />
                 </TableCell>
               ))}
             </TableRow>
