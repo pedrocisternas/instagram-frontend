@@ -473,19 +473,18 @@ export default function Home() {
           </TableHeader>
           <TableBody>
             {(isSyncing || isLoading) ? (
-
               Array.from({ length: 12 }).map((_, index) => (
                 <TableRow key={index}>
                   {Array(11).fill(null).map((_, cellIndex) => (
                     <TableCell key={cellIndex}>
-                      <Skeleton className="h-4 w-full rounded" />
+                      <Skeleton className="h-5 w-full rounded" />
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : allPosts.length === 0 ? (    
               <TableRow>
-                <TableCell>
+                <TableCell colSpan={11}>
                   <div className="flex flex-col items-center justify-center text-gray-500 py-10">
                     <p className="text-lg font-medium">No se encontraron publicaciones</p>
                     <p className="text-sm mt-1">Prueba con otros filtros o limpia los filtros actuales</p>
@@ -499,16 +498,6 @@ export default function Home() {
                     </Button>
                   </div>
                 </TableCell>
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
-                <TableCell />
               </TableRow>
             ) : (
               allPosts.map(post => (
@@ -592,32 +581,30 @@ export default function Home() {
           </TableBody>
         </Table>
 
-        {/* Controles de paginación, solo visibles si hay posts */}
-        {allPosts.length > 0 && !isLoading && (
-          <div className="mt-4 flex items-center justify-between">
-            <Button
-              color="primary"
-              onPress={() => handlePageChange(Math.max(1, page - 1))}
-              isDisabled={page === 1 || isLoading}
-              isLoading={isLoading}
-            >
-              Anterior
-            </Button>
-            
-            <span className="text-sm text-gray-700">
-              {isLoading ? "Cargando..." : `Página ${page} de ${totalPages}`}
-            </span>
-            
-            <Button
-              color="primary"
-              onPress={() => handlePageChange(page + 1)}
-              isDisabled={page >= totalPages || isLoading}
-              isLoading={isLoading}
-            >
-              Siguiente
-            </Button>
-          </div>
-        )}
+        {/* Controles de paginación siempre visibles */}
+        <div className="mt-4 flex items-center justify-between">
+          <Button
+            color="primary"
+            onPress={() => handlePageChange(Math.max(1, page - 1))}
+            isDisabled={page === 1 || isLoading}
+            isLoading={isLoading}
+          >
+            Anterior
+          </Button>
+          
+          <span className="text-sm text-gray-700">
+            {isLoading ? "Cargando..." : `Página ${page} de ${totalPages}`}
+          </span>
+          
+          <Button
+            color="primary"
+            onPress={() => handlePageChange(page + 1)}
+            isDisabled={page >= totalPages || isLoading}
+            isLoading={isLoading}
+          >
+            Siguiente
+          </Button>
+        </div>
       </main>
     </AuthGuard>
   );
