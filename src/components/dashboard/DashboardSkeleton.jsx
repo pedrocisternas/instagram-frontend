@@ -33,24 +33,24 @@ export default function DashboardSkeleton() {
 
       <Table removeWrapper aria-label="Instagram posts table skeleton">
         <TableHeader>
-          <TableColumn width="14.3%">Caption</TableColumn>
-          <TableColumn width="8%">Tipo</TableColumn>
-          <TableColumn width="12.5%">Categoría</TableColumn>
-          <TableColumn width="12.5%">Subcategoría</TableColumn>
-          <TableColumn width="8%">Fecha</TableColumn>
-          <TableColumn width="6%">Hora</TableColumn>
-          <TableColumn width="8%">Views</TableColumn>
-          <TableColumn width="8%">Likes</TableColumn>
-          <TableColumn width="8%">Saves</TableColumn>
-          <TableColumn width="8%">Shares</TableColumn>
-          <TableColumn width="8%">Comments</TableColumn>
+          <TableColumn width="17.3%">Caption</TableColumn>
+          <TableColumn width="8%" align="center">Tipo</TableColumn>
+          <TableColumn width="11%" align="center">Categoría</TableColumn>
+          <TableColumn width="11%" align="center">Subcategoría</TableColumn>
+          <TableColumn width="8%" align="center">Fecha</TableColumn>
+          <TableColumn width="6%" align="center">Hora</TableColumn>
+          <TableColumn width="8%" align="center">Views</TableColumn>
+          <TableColumn width="8%" align="center">Likes</TableColumn>
+          <TableColumn width="8%" align="center">Saves</TableColumn>
+          <TableColumn width="8%" align="center">Shares</TableColumn>
+          <TableColumn width="8%" align="center">Comments</TableColumn>
         </TableHeader>
         <TableBody>
           {Array(12).fill(null).map((_, index) => (
             <TableRow key={index}>
               {Array(11).fill(null).map((_, cellIndex) => (
                 <TableCell key={cellIndex}>
-                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-5 w-full rounded" />
                 </TableCell>
               ))}
             </TableRow>
