@@ -1,4 +1,4 @@
-import { Skeleton, Table, TableHeader, TableBody, TableColumn, TableRow, TableCell } from "@heroui/react";
+import { Skeleton, Table, TableHeader, TableBody, TableColumn, TableRow, TableCell, Checkbox } from "@heroui/react";
 
 const StatItemSkeleton = () => (
   <div className="bg-white rounded-lg p-4 shadow">
@@ -33,6 +33,9 @@ export default function DashboardSkeleton() {
 
       <Table removeWrapper aria-label="Instagram posts table skeleton">
         <TableHeader>
+          <TableColumn width="50px">
+            <Checkbox />
+          </TableColumn>
           <TableColumn width="17.3%">Caption</TableColumn>
           <TableColumn width="8%" align="center">Tipo</TableColumn>
           <TableColumn width="11%" align="center">Categoría</TableColumn>
@@ -48,10 +51,12 @@ export default function DashboardSkeleton() {
         <TableBody>
           {Array(12).fill(null).map((_, index) => (
             <TableRow key={index}>
+              <TableCell>
+                <Skeleton className="h-5 w-4 rounded" />
+              </TableCell>
               {Array(11).fill(null).map((_, cellIndex) => (
                 <TableCell key={cellIndex}>
                   <Skeleton className="h-5 w-full rounded" />
-
                 </TableCell>
               ))}
             </TableRow>

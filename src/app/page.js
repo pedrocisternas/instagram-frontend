@@ -9,7 +9,8 @@ import {
   TableCell,
   Button,
   Skeleton,
-  Tooltip
+  Tooltip,
+  Checkbox
 } from "@heroui/react";
 import { formatDate, formatTime } from '../utils/dateFormatters';
 import { useRouter } from 'next/navigation';
@@ -32,6 +33,7 @@ import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 import { generateInsights } from '@/services/api/insights';
 import { useAuthStore } from '@/store/auth';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { generatePostsPDF } from '@/services/export';
 
 // Componente Principal
 export default function Home() {
@@ -61,6 +63,9 @@ export default function Home() {
   // Nuevos estados para el panel de resumen
   const [summaryPosts, setSummaryPosts] = useState([]);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  // Nuevo estado para controlar los posts seleccionados
+  const [selectedPosts, setSelectedPosts] = useState(new Set([]));
+  const [isExporting, setIsExporting] = useState(false);
 
   // Obtenemos del store
   const { isSyncing, syncMetrics, setLastUpdate, lastUpdate } = useSyncStore();
@@ -216,6 +221,9 @@ export default function Home() {
 
   // Actualizar la URL cuando cambia la página
   const handlePageChange = (newPage) => {
+    // Limpiar los posts seleccionados al cambiar de página
+    setSelectedPosts(new Set([]));
+    
     // Actualizamos la URL
     const params = new URLSearchParams(window.location.search);
     params.set('page', newPage.toString());
@@ -393,6 +401,62 @@ export default function Home() {
     fetchSummaryData(cleanFilters);
   };
 
+    // Manejadores para selección de posts
+  const handleSelectPost = (postId) => {
+    setSelectedPosts(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(postId)) {
+        newSelection.delete(postId);
+      } else {
+        newSelection.add(postId);
+      }
+      return newSelection;
+    });
+  };
+
+  const handleSelectAllPosts = (isSelected) => {
+    // Si ya hay posts seleccionados, los deseleccionamos todos
+    // Si no hay posts seleccionados o hay menos que el total, seleccionamos todos
+    if (selectedPosts.size > 0) {
+      setSelectedPosts(new Set([]));
+    } else {
+      const allIds = allPosts.map(post => post.id);
+      setSelectedPosts(new Set(allIds));
+    }
+  };
+
+  // Función para exportar a PDF los posts seleccionados
+  const handleExportToPDF = async () => {
+    try {
+      // Comenzamos la exportación
+      setIsExporting(true);
+      
+      // Obtenemos los posts seleccionados
+      const postsToExport = allPosts.filter(post => selectedPosts.has(post.id));
+      
+      if (postsToExport.length === 0) {
+        alert('Por favor, selecciona al menos un post para exportar');
+        setIsExporting(false);
+        return;
+      }
+      
+      // Utilizamos la función del servicio de exportación
+      await generatePostsPDF({
+        posts: postsToExport,
+        categories,
+        username: user.username
+      });
+      
+      // Terminamos la exportación
+      setIsExporting(false);
+      
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      setError('Error al exportar a PDF. Por favor, inténtalo de nuevo.');
+      setIsExporting(false);
+    }
+  };
+
   // Modificar la lógica de loading
   if (authState === 'loading' || isInitialLoading) {
     return <DashboardSkeleton />;
@@ -419,27 +483,48 @@ export default function Home() {
             </Button> */}
           </div>
           
-          <PostFilters 
-            selectedTypes={selectedTypes}
-            selectedCategories={selectedCategories}
-            selectedSubcategories={selectedSubcategories}
-            categories={categories}
-            subcategories={subcategories}
-            sortField={sortField}
-            sortDirection={sortDirection}
-            selectedDays={selectedDays}
-            onTypeChange={handleTypeChange}
-            onCategoryChange={handleCategoryChange}
-            onSubcategoryChange={handleSubcategoryChange}
-            onDaysChange={handleDaysChange}
-            onResetFilters={handleResetFilters}
-          />
+          <div className="flex gap-2 items-center">
+            {selectedPosts.size > 0 && (
+              <Button 
+                color="primary"
+                onPress={handleExportToPDF}
+                isLoading={isExporting}
+                className="mr-4"
+              >
+                Exportar {selectedPosts.size} {selectedPosts.size === 1 ? 'post' : 'posts'} a PDF
+              </Button>
+            )}
+
+            <PostFilters 
+              selectedTypes={selectedTypes}
+              selectedCategories={selectedCategories}
+              selectedSubcategories={selectedSubcategories}
+              categories={categories}
+              subcategories={subcategories}
+              sortField={sortField}
+              sortDirection={sortDirection}
+              selectedDays={selectedDays}
+              onTypeChange={handleTypeChange}
+              onCategoryChange={handleCategoryChange}
+              onSubcategoryChange={handleSubcategoryChange}
+              onDaysChange={handleDaysChange}
+              onResetFilters={handleResetFilters}
+            />
+          </div>
         </div>
 
         <StatsSummaryPanel posts={summaryPosts} isLoading={isSummaryLoading} />
 
         <Table removeWrapper aria-label="Instagram posts table" ref={tableRef}>
           <TableHeader>
+            <TableColumn width="50px">
+              <Checkbox
+                isSelected={selectedPosts.size > 0 && selectedPosts.size === allPosts.length}
+                isIndeterminate={selectedPosts.size > 0 && selectedPosts.size < allPosts.length}
+                onChange={handleSelectAllPosts}
+                aria-label={selectedPosts.size > 0 ? "Deseleccionar todos los posts" : "Seleccionar todos los posts"}
+              />
+            </TableColumn>
             <TableColumn width="17.3%">Caption</TableColumn>
             <TableColumn width="8%" align="center">Tipo</TableColumn>
             <TableColumn width="11%" align="center">Categoría</TableColumn>
@@ -475,6 +560,9 @@ export default function Home() {
             {(isSyncing || isLoading) ? (
               Array.from({ length: 12 }).map((_, index) => (
                 <TableRow key={index}>
+                  <TableCell>
+                    <Skeleton className="h-5 w-4 rounded" />
+                  </TableCell>
                   {Array(11).fill(null).map((_, cellIndex) => (
                     <TableCell key={cellIndex}>
                       <Skeleton className="h-5 w-full rounded" />
@@ -484,7 +572,7 @@ export default function Home() {
               ))
             ) : allPosts.length === 0 ? (    
               <TableRow>
-                <TableCell colSpan={11}>
+                <TableCell colSpan={12}>
                   <div className="flex flex-col items-center justify-center text-gray-500 py-10">
                     <p className="text-lg font-medium">No se encontraron publicaciones</p>
                     <p className="text-sm mt-1">Prueba con otros filtros o limpia los filtros actuales</p>
@@ -503,9 +591,17 @@ export default function Home() {
               allPosts.map(post => (
                 <TableRow 
                   key={post.id} 
-                  className="cursor-pointer hover:bg-gray-100 transition-colors"
+                  className={`cursor-pointer hover:bg-gray-100 transition-colors ${selectedPosts.has(post.id) ? 'bg-purple-50' : ''}`}
                   onClick={() => router.push(`/post/${post.id}`)}
                 >
+                  <TableCell className="w-[50px] p-0 pl-4">
+                    <Checkbox 
+                      isSelected={selectedPosts.has(post.id)}
+                      onChange={() => handleSelectPost(post.id)}
+                      aria-label={`Seleccionar post ${post.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </TableCell>
                   <TableCell className="text-gray-900 max-w-0 w-[17.3%]">
                     {post.caption 
                       ? (
