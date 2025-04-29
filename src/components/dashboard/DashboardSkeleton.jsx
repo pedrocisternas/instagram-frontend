@@ -51,6 +51,7 @@ export default function DashboardSkeleton() {
               {Array(11).fill(null).map((_, cellIndex) => (
                 <TableCell key={cellIndex}>
                   <Skeleton className="h-5 w-full rounded" />
+
                 </TableCell>
               ))}
             </TableRow>
